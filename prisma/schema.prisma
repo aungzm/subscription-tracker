@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+
+enum NotificationProviderType {
+  EMAIL
+  PUSH
+	@@map("ReminderType")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified DateTime?
+  password      String
+  image         String?
+  currency      String   // USD, EUR, GBP, etc.
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  subscriptions Subscription[]
+  categories    Category[]
+  paymentMethods PaymentMethod[]
+  reminders     Reminder[]
+  notificationProviders NotificationProvider[]      
+}
+
+model Subscription {
+  id               String   @id @default(cuid())
+  name             String
+  cost             Float
+  currency         String   // USD, EUR, GBP, etc.
+  billingFrequency String   // monthly, yearly, weekly, custom
+  startDate        DateTime
+  endDate          DateTime? // Nullable for ongoing subscriptions
+  notes            String?
+  isShared         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId      String?
+  category        Category?       @relation(fields: [categoryId], references: [id])
+  paymentMethodId String?
+  paymentMethod   PaymentMethod?  @relation(fields: [paymentMethodId], references: [id])
+  reminders       Reminder[]
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([paymentMethodId])
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String
+  color       String   @default("#0000FF") // Blue as default
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+  @@unique([name, userId])
+  @@index([userId])
+}
+
+model PaymentMethod {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // credit_card, debit_card, paypal, bank_transfer, other
+  lastFour    String?
+  expiryDate  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptions Subscription[]
+  @@unique([name, userId])
+  @@index([userId])
+}
+
+model Reminder {
+  id                 String   @id @default(cuid())
+  subscriptionId     String
+  subscription       Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminderDate       DateTime
+  isRead             Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  notificationProviders NotificationProvider[] @relation("ReminderNotificationProviders")
+  @@index([subscriptionId])
+  @@index([userId])
+}
+
+model NotificationProvider {
+  id               String                  @id @default(cuid())
+  name             String
+  type             NotificationProviderType
+  smtpServer       String?   // e.g., smtp.example.com
+  smtpPort         Int?
+  smtpUser         String?
+  smtpPassword     String?
+  // Webhook-specific fields
+  webhookUrl       String?  
+  webhookSecret    String?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  userId           String
+  user             User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminders        Reminder[] @relation("ReminderNotificationProviders")
+  @@unique([name, userId])
+  @@index([userId])
+}
+
+
+
