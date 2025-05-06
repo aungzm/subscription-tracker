@@ -37,7 +37,7 @@ interface DashboardData {
 }
 
 async function getDashboardData(): Promise<DashboardData> {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const cookie = cookieStore.toString();
 
   const host = (await headers()).get("host");
