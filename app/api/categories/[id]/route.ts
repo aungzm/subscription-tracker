@@ -34,13 +34,14 @@ export async function GET(
 // PUT /api/categories/:id - Update a category
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const params = await context.params;
     const body = await request.json();
     const category = await prisma.category.update({
       where: {
@@ -65,13 +66,15 @@ export async function PUT(
 // DELETE /api/categories/:id - Delete a category
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const params = await context.params;
     await prisma.category.delete({
       where: {
         id: params.id,

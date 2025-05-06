@@ -1,11 +1,62 @@
-import { Suspense } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Overview } from "@/components/dashboard/overview"
-import { RecentSubscriptions } from "@/components/dashboard/recent-subscriptions"
-import { UpcomingRenewals } from "@/components/dashboard/upcoming-renewals"
-import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton"
+import { Suspense } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Overview } from "@/components/dashboard/overview";
+import { RecentSubscriptions } from "@/components/dashboard/recent-subscriptions";
+import { UpcomingRenewals } from "@/components/dashboard/upcoming-renewals";
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
+import { cookies, headers } from "next/headers";
 
-export default function DashboardPage() {
+// Types
+interface RecentSubscription {
+  id: string;
+  name: string;
+  cost: number;
+  billingFrequency: string;
+  startDate: string; // Use string for JSON dates
+  category: string;
+  category_color: string;
+}
+
+interface UpcomingRenewal {
+  id: string;
+  name: string;
+  nextRenewal: string; // Use string for JSON dates
+  cost: number;
+  billingFrequency: string;
+}
+
+interface DashboardData {
+  totals: {
+    totalMonthly: number;
+    totalYearly: number;
+    activeSubscriptions: number;
+    upcomingRenewals: number;
+  };
+  recentSubscriptions: RecentSubscription[];
+  upcomingRenewals: UpcomingRenewal[];
+}
+
+async function getDashboardData(): Promise<DashboardData> {
+  const cookieStore = cookies();
+  const cookie = cookieStore.toString();
+
+  const host = (await headers()).get("host");
+  const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
+  const url = `${protocol}://${host}/api/subscriptions/details`;
+
+  const res = await fetch(url, {
+    headers: {
+      cookie,
+    },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Failed to fetch dashboard data");
+  return res.json();
+}
+
+export default async function DashboardPage() {
+  const data = await getDashboardData();
+
   return (
     <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
       <div className="flex items-center justify-between space-y-2">
@@ -18,7 +69,7 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium">Total Monthly</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$249.45</div>
+              <div className="text-2xl font-bold">${data.totals.totalMonthly.toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">+2.5% from last month</p>
             </CardContent>
           </Card>
@@ -27,7 +78,7 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium">Total Yearly</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">$2,993.40</div>
+              <div className="text-2xl font-bold">${data.totals.totalYearly.toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">+18.1% from last year</p>
             </CardContent>
           </Card>
@@ -36,7 +87,7 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
+              <div className="text-2xl font-bold">{data.totals.activeSubscriptions}</div>
               <p className="text-xs text-muted-foreground">+2 from last year</p>
             </CardContent>
           </Card>
@@ -45,7 +96,7 @@ export default function DashboardPage() {
               <CardTitle className="text-sm font-medium">Upcoming Renewals</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">3</div>
+              <div className="text-2xl font-bold">{data.totals.upcomingRenewals}</div>
               <p className="text-xs text-muted-foreground">In the next 7 days</p>
             </CardContent>
           </Card>
@@ -66,7 +117,7 @@ export default function DashboardPage() {
               <CardDescription>Subscriptions renewing soon</CardDescription>
             </CardHeader>
             <CardContent>
-              <UpcomingRenewals />
+              <UpcomingRenewals renewals={data.upcomingRenewals} />
             </CardContent>
           </Card>
         </div>
@@ -77,11 +128,11 @@ export default function DashboardPage() {
               <CardDescription>Your recently added subscriptions</CardDescription>
             </CardHeader>
             <CardContent>
-              <RecentSubscriptions />
+              <RecentSubscriptions subscriptions={data.recentSubscriptions} />
             </CardContent>
           </Card>
         </div>
       </Suspense>
     </div>
-  )
+  );
 }

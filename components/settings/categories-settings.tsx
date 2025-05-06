@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/tooltip";
 
 type Category = {
-  id: string; // Prisma uses string IDs (cuid), not number
+  id: string; // Prisma uses string IDs 
   name: string;
   color: string;
 };
@@ -148,6 +148,7 @@ export const CategoriesSettings = () => {
   };
 
   return (
+  <TooltipProvider>
     <div className="space-y-6">
       {/* Add new category */}
       <div className="flex items-center space-x-2">
@@ -159,7 +160,7 @@ export const CategoriesSettings = () => {
           className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background flex-1"
         />
 
-        <TooltipProvider>
+        
           <Tooltip>
             <TooltipTrigger asChild>
               <Popover open={isColorPickerOpen} onOpenChange={setIsColorPickerOpen}>
@@ -221,7 +222,7 @@ export const CategoriesSettings = () => {
               <p>Choose a color</p>
             </TooltipContent>
           </Tooltip>
-        </TooltipProvider>
+        
 
         <button
           onClick={addCategory}
@@ -361,5 +362,6 @@ export const CategoriesSettings = () => {
         )}
       </div>
     </div>
+    </TooltipProvider>
   );
 };
