@@ -171,6 +171,42 @@ export function NotificationSettings() {
     });
   }
 
+  async function testProvider(values: Provider) {
+    // Add test message
+    const testPayload = {
+      ...values,
+      message: {
+        subject: "Test Notification",
+        body: "This is a test message from Subscription Tracker"
+      }
+    };
+    try {
+      const response = await fetch("/api/notificationProvider/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+          message: "Failed to test provider",
+        }));
+        throw new Error(errorData.message || "Failed to test provider");
+      }
+
+      toast({
+        title: "Test Successful",
+        description: "Provider test succeeded.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Test Failed",
+        description: error.message || "Could not test the provider.",
+        variant: "destructive",
+      });
+    }
+  }
+
   async function deleteProvider(id: string) {
     startTransition(async () => {
       try {
@@ -488,11 +524,24 @@ export function NotificationSettings() {
               <DialogFooter>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="destructive"
                   onClick={handleDialogClose}
                   disabled={isPending}
                 >
                   Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    const isValid = await form.trigger();
+                    if (!isValid) return;
+                    const values = form.getValues();
+                    testProvider(values);
+                  }}
+                  disabled={isPending}
+                >
+                  Test Provider
                 </Button>
                 <Button type="submit" disabled={isPending}>
                   {isPending
