@@ -38,7 +38,7 @@ export function ClientDashboardLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
+        <div className="flex h-14 items-center flex-end ml-1 mr-8">
           <div className="mr-4 hidden md:flex">
             <a href="/dashboard" className="mr-6 flex items-center space-x-2">
               <span className={cn("font-bold ml-4", !isExpanded && "sr-only")}>
