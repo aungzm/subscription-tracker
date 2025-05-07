@@ -118,9 +118,9 @@ export function MonthlyTrend() {
         )}
       </div>
       
-      <ChartContainer className="h-80" config={chartConfig}>
+      <ChartContainer className="h-80 w-full max-w-full" config={chartConfig}>
         {loading ? (
-          <div className="flex h-full items-center justify-center">
+          <div className="flex h-full items-center justify-center w-full">
             <div className="text-center">
               <div className="mb-2 h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent mx-auto"></div>
               <p className="text-sm text-muted-foreground">Loading data...</p>

@@ -97,7 +97,7 @@ export function YearlyTrend() {
 
   return (
     <div className="space-y-4">      
-      <ChartContainer className="h-80" config={chartConfig}>
+      <ChartContainer className="h-80 w-full max-w-full" config={chartConfig}>
         {loading ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
