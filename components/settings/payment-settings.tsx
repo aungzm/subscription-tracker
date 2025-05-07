@@ -19,15 +19,16 @@ type PaymentMethod = {
     expiryDate: Date | null
 }
 
-const paymentTypes = [
-    "Credit Card",
-    "Debit Card",
-    "PayPal",
-    "Bank Transfer",
-    "Apple Pay",
-    "Google Pay",
-    "Other"
-]
+const paymentTypes: Record<string, string> = {
+    CREDIT_CARD: "Credit Card",
+    DEBIT_CARD: "Debit Card",
+    PAYPAL: "PayPal",
+    APPLE_PAY: "Apple Pay",
+    GOOGLE_PAY: "Google Pay",
+    CRYPTO: "Crypto",
+    BANK_TRANSFER: "Bank Transfer",
+    OTHER: "Other",
+}
 
 export function PaymentSettings() {
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
@@ -54,8 +55,8 @@ export function PaymentSettings() {
                 name: editingMethod.name,
                 type: editingMethod.type,
                 lastFour: editingMethod.lastFour || "",
-                expiryDate: editingMethod.expiryDate 
-                    ? format(new Date(editingMethod.expiryDate), "yyyy-MM") 
+                expiryDate: editingMethod.expiryDate
+                    ? format(new Date(editingMethod.expiryDate), "yyyy-MM")
                     : ""
             })
         } else {
@@ -72,9 +73,9 @@ export function PaymentSettings() {
         try {
             setIsLoading(true)
             const res = await fetch("/api/payment")
-            
+
             if (!res.ok) throw new Error("Failed to fetch payment methods")
-            
+
             const data = await res.json()
             setPaymentMethods(data)
         } catch (error) {
@@ -92,7 +93,7 @@ export function PaymentSettings() {
     async function onSubmit(values: any) {
         try {
             setIsLoading(true)
-            
+
             const method = {
                 name: values.name,
                 type: values.type,
@@ -101,7 +102,7 @@ export function PaymentSettings() {
             }
 
             let res
-            
+
             if (editingMethod) {
                 res = await fetch(`/api/payment/${editingMethod.id}`, {
                     method: "PATCH",
@@ -123,11 +124,11 @@ export function PaymentSettings() {
             await fetchPaymentMethods()
             setIsDialogOpen(false)
             setEditingMethod(null)
-            
+
             toast({
                 title: editingMethod ? "Payment method updated" : "Payment method added",
-                description: editingMethod 
-                    ? "Your payment method has been updated successfully." 
+                description: editingMethod
+                    ? "Your payment method has been updated successfully."
                     : "Your payment method has been added successfully."
             })
         } catch (error) {
@@ -145,15 +146,15 @@ export function PaymentSettings() {
     async function deletePaymentMethod(id: string) {
         try {
             setIsLoading(true)
-            
+
             const res = await fetch(`/api/payment/${id}`, {
                 method: "DELETE"
             })
-            
+
             if (!res.ok) throw new Error("Failed to delete payment method")
-            
+
             await fetchPaymentMethods()
-            
+
             toast({
                 title: "Payment method deleted",
                 description: "Your payment method has been deleted successfully."
@@ -225,7 +226,7 @@ export function PaymentSettings() {
                                         </FormItem>
                                     )}
                                 />
-                                
+
                                 <FormField
                                     control={form.control}
                                     name="type"
@@ -233,16 +234,16 @@ export function PaymentSettings() {
                                     render={({ field }) => (
                                         <FormItem>
                                             <FormLabel>Type</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl>
                                                     <SelectTrigger>
                                                         <SelectValue placeholder="Select payment type" />
                                                     </SelectTrigger>
                                                 </FormControl>
                                                 <SelectContent>
-                                                    {paymentTypes.map((type) => (
-                                                        <SelectItem key={type} value={type}>
-                                                            {type}
+                                                    {Object.entries(paymentTypes).map(([enumValue, label]) => (
+                                                        <SelectItem key={enumValue} value={enumValue}>
+                                                            {label}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -259,10 +260,10 @@ export function PaymentSettings() {
                                         <FormItem>
                                             <FormLabel>Last 4 digits (optional)</FormLabel>
                                             <FormControl>
-                                                <Input 
-                                                    placeholder="e.g. 1234" 
-                                                    maxLength={4} 
-                                                    {...field} 
+                                                <Input
+                                                    placeholder="e.g. 1234"
+                                                    maxLength={4}
+                                                    {...field}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -277,9 +278,9 @@ export function PaymentSettings() {
                                         <FormItem>
                                             <FormLabel>Expiry Date (optional)</FormLabel>
                                             <FormControl>
-                                                <Input 
-                                                    type="month" 
-                                                    {...field} 
+                                                <Input
+                                                    type="month"
+                                                    {...field}
                                                 />
                                             </FormControl>
                                             <FormMessage />
@@ -288,9 +289,9 @@ export function PaymentSettings() {
                                 />
 
                                 <div className="flex justify-end space-x-2 pt-4">
-                                    <Button 
-                                        type="button" 
-                                        variant="outline" 
+                                    <Button
+                                        type="button"
+                                        variant="outline"
                                         onClick={() => setIsDialogOpen(false)}
                                     >
                                         Cancel
@@ -317,16 +318,18 @@ export function PaymentSettings() {
                             </div>
                             <div className="flex flex-col">
                                 <span className="font-medium">{formatCardInfo(method)}</span>
-                                <span className="text-sm text-muted-foreground">{method.type}</span>
+                                <span className="text-sm text-muted-foreground">
+                                    {paymentTypes[method.type] || method.type}
+                                </span>
                             </div>
                         </div>
                         <div className="flex items-center space-x-2">
                             <Button variant="ghost" size="icon" onClick={() => handleEdit(method)}>
                                 <Edit className="h-4 w-4" />
                             </Button>
-                            <Button 
-                                variant="ghost" 
-                                size="icon" 
+                            <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => deletePaymentMethod(method.id)}
                             >
                                 <Trash2 className="h-4 w-4 text-destructive" />

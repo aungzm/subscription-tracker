@@ -62,7 +62,7 @@ async function main() {
     prisma.paymentMethod.create({
       data: {
         name: "Visa",
-        type: "credit_card",
+        type: "CREDIT_CARD",
         lastFour: "1234",
         expiryDate: new Date("2026-12-31"),
         userId: alice.id,
@@ -71,14 +71,14 @@ async function main() {
     prisma.paymentMethod.create({
       data: {
         name: "PayPal",
-        type: "paypal",
+        type: "PAYPAL",
         userId: alice.id,
       },
     }),
     prisma.paymentMethod.create({
       data: {
         name: "Mastercard",
-        type: "credit_card",
+        type: "CREDIT_CARD",
         lastFour: "5678",
         expiryDate: new Date("2025-08-31"),
         userId: bob.id,

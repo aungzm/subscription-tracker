@@ -38,14 +38,14 @@ export async function GET(
 // PUT to update an existing reminder by id
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
+    const params = await context.params;
     const body = await request.json();
     const { reminderDate, isRead } = body;
 

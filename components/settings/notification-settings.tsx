@@ -46,10 +46,13 @@ const providerSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, "Name is required"),
   type: z.enum(["EMAIL", "PUSH"]),
-  subscriptionId: z.string().optional().nullable(),
   // SMTP fields
   smtpServer: z.string().optional().nullable(),
-  smtpPort: z.number().optional().nullable(),
+  smtpPort: z
+    .preprocess(
+      (val) => (val === "" || val == null ? null : Number(val)),
+      z.number().optional().nullable()
+    ),
   smtpUser: z.string().optional().nullable(),
   smtpPassword: z.string().optional().nullable(),
   // Webhook fields
@@ -62,16 +65,14 @@ type Provider = z.infer<typeof providerSchema>;
 export function NotificationSettings() {
   const [isPending, startTransition] = useTransition();
   const [providers, setProviders] = useState<Provider[]>([]);
-  const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const form = useForm<Provider>({
-    resolver: zodResolver(providerSchema),
+  const form = useForm<z.infer<typeof providerSchema>>({
+    resolver: zodResolver(providerSchema) as any,
     defaultValues: {
       name: "",
       type: "EMAIL",
-      subscriptionId: null,
       smtpServer: null,
       smtpPort: null,
       smtpUser: null,
@@ -205,7 +206,6 @@ export function NotificationSettings() {
     form.reset({
       name: "",
       type: "EMAIL",
-      subscriptionId: null,
       smtpServer: null,
       smtpPort: null,
       smtpUser: null,

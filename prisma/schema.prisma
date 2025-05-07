@@ -17,6 +17,17 @@ enum NotificationProviderType {
 	@@map("ReminderType")
 }
 
+enum PaymentMethodType {
+  CREDIT_CARD
+  DEBIT_CARD
+  PAYPAL
+  APPLE_PAY
+  GOOGLE_PAY
+  CRYPTO
+  BANK_TRANSFER
+  OTHER
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -75,7 +86,7 @@ model Category {
 model PaymentMethod {
   id          String   @id @default(cuid())
   name        String
-  type        String   // credit_card, debit_card, paypal, bank_transfer, other
+  type        PaymentMethodType
   lastFour    String?
   expiryDate  DateTime?
   createdAt   DateTime @default(now())

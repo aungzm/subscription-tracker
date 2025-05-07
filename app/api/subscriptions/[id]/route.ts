@@ -76,7 +76,7 @@ export async function GET(request: Request) {
 // PUT to update an existing subscription by id
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -84,7 +84,7 @@ export async function PUT(
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
+    const params = await context.params;
     const id = params.id;
     const body = await request.json();
 

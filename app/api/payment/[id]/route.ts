@@ -37,14 +37,14 @@ export async function GET(
 // PATCH: Update an existing payment method by id
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
+    const params = await context.params;
     const body = await request.json();
     const { name, type, lastFour, expiryDate } = body;
 

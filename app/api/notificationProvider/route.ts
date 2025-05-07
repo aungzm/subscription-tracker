@@ -46,7 +46,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: validationError }, { status: 400 });
     }
     const data: any = {
-      subscriptionId: body.subscriptionId,
       name: body.name,
       type: body.type,
       userId: session.user.id,
