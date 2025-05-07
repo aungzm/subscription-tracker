@@ -22,11 +22,6 @@ const navItems = [
     icon: BarChart3,
   },
   {
-    title: "Shared",
-    href: "/dashboard/shared",
-    icon: Users,
-  },
-  {
     title: "Settings",
     href: "/dashboard/settings",
     icon: Settings,
