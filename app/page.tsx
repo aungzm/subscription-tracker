@@ -3,7 +3,7 @@ import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowRight, CreditCard, LineChart, Settings, Users } from "lucide-react"
+import { ArrowRight, CalendarRange, CreditCard, LineChart, ReceiptText} from "lucide-react"
 
 export default async function Home() {
   const session = await auth()
@@ -14,8 +14,8 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 max-w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center w-full">
+      <header className="sticky top-0 z-50 max-w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 mr-4 ml-4">
+        <div className="flex h-14 items-center w-full">
           <div className="mr-4 flex">
             <Link href="/" className="mr-6 flex items-center space-x-2">
               <CreditCard className="h-6 w-6" />
@@ -38,7 +38,7 @@ export default async function Home() {
       </header>
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32">
-          <div className="container px-4 md:px-6">
+          <div className="mr-4 ml-4 px-4 md:px-6">
             <div className="grid gap-6 lg:grid-cols-[1fr_400px] lg:gap-12 xl:grid-cols-[1fr_600px]">
               <div className="flex flex-col justify-center space-y-4">
                 <div className="space-y-2">
@@ -67,7 +67,7 @@ export default async function Home() {
                       <CardDescription>Monitor your monthly and yearly spending</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <LineChart className="h-12 w-12 text-primary" />
+                      <ReceiptText className="h-12 w-12 text-primary" />
                     </CardContent>
                   </Card>
                   <Card>
@@ -75,17 +75,8 @@ export default async function Home() {
                       <CardTitle className="text-xl">Get Reminders</CardTitle>
                       <CardDescription>Never miss a payment deadline</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <Settings className="h-12 w-12 text-primary" />
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardHeader className="space-y-1">
-                      <CardTitle className="text-xl">Share Costs</CardTitle>
-                      <CardDescription>Split subscriptions with others</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Users className="h-12 w-12 text-primary" />
+                    <CardContent className="mt-4">
+                      <CalendarRange className="h-12 w-12 text-primary" />
                     </CardContent>
                   </Card>
                   <Card>
@@ -103,13 +94,6 @@ export default async function Home() {
           </div>
         </section>
       </main>
-      <footer className="border-t py-6 md:py-0">
-        <div className="container flex flex-col items-center justify-between gap-4 md:h-16 md:flex-row">
-          <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} SubTracker. All rights reserved.
-          </p>
-        </div>
-      </footer>
     </div>
   )
 }
