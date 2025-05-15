@@ -80,11 +80,9 @@ A simple and effective tool to help you manage your app subscriptions. Track rec
 
 ## Demo instance
 
-Demo instance can be found here: [https://subscription-tracker-murex.vercel.app/](https://subscription-tracker-murex.vercel.app/)
-User: alice@example.com/bob@example.com
-Password: hashedPassword1/hashedPassword2
-
-**Note** The demo instance resets every 12 hours, any changes made will be wiped
+Demo instance can be found here: [https://subscription-tracker-murex.vercel.app/](https://subscription-tracker-murex.vercel.app/) \
+User: alice@example.com / bob@example.com \
+Password: hashedPassword1 / hashedPassword2
 
 ## License
 
