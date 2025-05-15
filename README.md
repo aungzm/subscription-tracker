@@ -78,9 +78,13 @@ A simple and effective tool to help you manage your app subscriptions. Track rec
 
 5. The app will be accessible at `http://localhost:3000` by default.
 
-## Configuration
+## Demo instance
 
-You can configure various aspects of the app, such as environment variables, notification preferences, and currency settings. Create a `.env.local` file to define your environment variables as needed.
+Demo instance can be found here: [https://subscription-tracker-murex.vercel.app/](https://subscription-tracker-murex.vercel.app/)
+User: alice@example.com/bob@example.com
+Password: hashedPassword1/hashedPassword2
+
+**Note** The demo instance resets every 12 hours, any changes made will be wiped
 
 ## License
 
