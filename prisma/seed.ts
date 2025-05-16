@@ -14,7 +14,7 @@ async function main() {
       data: {
         name: "Alice",
         email: "alice@example.com",
-        password: hashedpassword1,
+        password: hashedPassword1,
         currency: "USD",
         image: "https://randomuser.me/api/portraits/women/1.jpg",
         emailVerified: new Date(),
@@ -24,7 +24,7 @@ async function main() {
       data: {
         name: "Bob",
         email: "bob@example.com",
-        password: hashedpassword2,
+        password: hashedPassword2,
         currency: "EUR",
         image: "https://randomuser.me/api/portraits/men/2.jpg",
         emailVerified: new Date(),
