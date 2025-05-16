@@ -3,7 +3,7 @@ FROM node:20 AS builder
 ARG DATABASE_URL
 ARG NEXTAUTH_URL
 ARG NEXTAUTH_SECRET
-ARG VERCEL_URL # Consider if this is truly needed for Railway
+ARG VERCEL_URL
 
 WORKDIR /app
 
