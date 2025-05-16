@@ -9,3 +9,6 @@ services:
       - ./data:/app/data
     environment:
       - DATABASE_URL=file:./data/db.sqlite
+      - NEXTAUTH_SECRET=
+      - NEXTAUTH_URL=
+      - VERCEL_URL=
