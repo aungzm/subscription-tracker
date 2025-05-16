@@ -14,8 +14,7 @@ RUN npm install --frozen-lockfile
 ENV DATABASE_URL=${DATABASE_URL}
 ENV NEXTAUTH_URL=${NEXTAUTH_URL}
 ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
-ENV VERCEL_URL=${VERCEL_URL} # Consider if this is truly needed
-
+ENV VERCEL_URL=${VERCEL_URL}
 COPY . .
 
 RUN npm run build
