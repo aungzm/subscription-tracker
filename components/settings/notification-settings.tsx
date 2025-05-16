@@ -184,7 +184,7 @@ export function NotificationSettings() {
       const response = await fetch("/api/notificationProvider/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify(testPayload),
       });
 
       if (!response.ok) {
