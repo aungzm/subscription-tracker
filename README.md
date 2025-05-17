@@ -80,7 +80,7 @@ A simple and effective tool to help you manage your app subscriptions. Track rec
 
 ## Demo instance
 
-Demo instance can be found here: [https://subscription-tracker-murex.vercel.app/](https://subscription-tracker-murex.vercel.app/) \
+Demo instance can be found here: [https://subscription-tracker-production-7105.up.railway.app](https://subscription-tracker-production-7105.up.railway.app) \
 User: alice@example.com / bob@example.com \
 Password: hashedpassword1 / hashedpassword2
 
