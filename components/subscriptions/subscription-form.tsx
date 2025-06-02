@@ -397,7 +397,7 @@ export function SubscriptionForm({
           mode === "edit" ? "updated" : "added"
         }.`,
       })
-      router.push("/dashboard/subscriptions")
+      router.push("/subscriptions")
       router.refresh()
     } catch (error) {
       console.error("Submission error:", error)
@@ -815,7 +815,7 @@ export function SubscriptionForm({
           <Button
             type="button"
             variant="outline"
-            onClick={() => router.push("/dashboard/subscriptions")}
+            onClick={() => router.push("/subscriptions")}
           >
             Cancel
           </Button>

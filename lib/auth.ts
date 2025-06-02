@@ -72,6 +72,5 @@ export const authOptions: NextAuthOptions = {
 }
 
 export async function auth() {
-  console.log(process.env.NEXTAUTH_SECRET);
   return getServerSession(authOptions) as Promise<ExtendedSession | null>
 }

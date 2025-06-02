@@ -15,18 +15,16 @@ export default function EditSubscriptionPage() {
     async function fetchSubscription() {
       try {
         const res = await fetch(`/api/subscriptions/${id}`)
-        console.log(res);
         if (!res.ok) throw new Error("Failed to fetch subscription")
         const data = await res.json()
         setSubscription(data)
-        console.log(data);
       } catch (error) {
         toast({
           title: "Error",
           description: "Unable to load subscription.",
           variant: "destructive",
         })
-        router.push("/dashboard/subscriptions")
+        router.push("/subscriptions")
       } finally {
         setLoading(false)
       }
@@ -42,7 +40,7 @@ return (
         <div className="flex items-center">
             <button
                 type="button"
-                onClick={() => router.push("/dashboard/subscriptions")}
+                onClick={() => router.push("/subscriptions")}
                 className="gap-1 flex items-center text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
             >
                 {/* You can use an icon library here, e.g., lucide-react */}

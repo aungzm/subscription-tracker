@@ -8,7 +8,7 @@ export default function NewSubscriptionPage() {
   return (
     <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
       <div className="flex items-center">
-        <Link href="/dashboard/subscriptions">
+        <Link href="/subscriptions">
           <Button variant="ghost" size="sm" className="gap-1">
             <ArrowLeft className="h-4 w-4" />
             Back

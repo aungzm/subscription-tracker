@@ -295,7 +295,7 @@ export function SubscriptionsList({ billingFrequency }: SubscriptionsListProps) 
                           <DropdownMenuSeparator />
                           <DropdownMenuItem asChild>
                             <Link
-                              href={`/dashboard/subscriptions/${subscription.id}`}
+                              href={`/subscriptions/${subscription.id}`}
                             >
                               <Edit className="mr-2 h-4 w-4" />
                               Edit

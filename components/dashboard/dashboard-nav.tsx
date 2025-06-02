@@ -13,17 +13,17 @@ const navItems = [
   },
   {
     title: "Subscriptions",
-    href: "/dashboard/subscriptions",
+    href: "/subscriptions",
     icon: CreditCard,
   },
   {
     title: "Analytics",
-    href: "/dashboard/analytics",
+    href: "/analytics",
     icon: BarChart3,
   },
   {
     title: "Settings",
-    href: "/dashboard/settings",
+    href: "/settings",
     icon: Settings,
   },
 ]
