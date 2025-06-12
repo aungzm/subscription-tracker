@@ -17,9 +17,9 @@ const providerSchema = z.object({
   }),
 });
 
-type ProviderData = z.infer<typeof providerSchema>;
+export type ProviderData = z.infer<typeof providerSchema>;
 
-async function sendEmail(provider: ProviderData) {
+export async function sendEmail(provider: ProviderData) {
   if (
     !provider.smtpServer ||
     !provider.smtpPort ||
@@ -31,7 +31,7 @@ async function sendEmail(provider: ProviderData) {
   return true;
 }
 
-async function sendWebhook(provider: ProviderData) {
+export async function sendWebhook(provider: ProviderData) {
   if (!provider.webhookUrl) {
     throw new Error("Missing webhook URL for PUSH notification");
   }

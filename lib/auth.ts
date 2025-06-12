@@ -7,7 +7,7 @@ import { Session } from "next-auth"
 
 
 // Extend the Session type
-interface ExtendedSession extends Session {
+export interface ExtendedSession extends Session {
   user: {
     id: string;
     name: string;
