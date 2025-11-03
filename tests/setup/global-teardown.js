@@ -1,15 +1,18 @@
-const { unlink } = require("fs/promises");
-const path = require("path");
-const { URL } = require("url");
+const { PrismaClient } = require("@prisma/client");
 
 module.exports = async function globalTeardown() {
-  console.log("\n[globalTeardown] deleting sqlite file…");
+  console.log("\n[globalTeardown] cleaning up test database…");
   if (!process.env.DATABASE_URL) return;
+
   try {
-    const url = new URL(process.env.DATABASE_URL);
-    await unlink(path.resolve(url.pathname));
+    const prisma = new PrismaClient();
+
+    // For PostgreSQL, we'll disconnect from the database
+    // You can also drop all tables or truncate them if needed
+    await prisma.$disconnect();
+
     console.log("[globalTeardown] done");
   } catch (e) {
-    if (e.code !== "ENOENT") console.error(e);
+    console.error("[globalTeardown] error:", e);
   }
 };

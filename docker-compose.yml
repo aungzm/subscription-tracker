@@ -1,14 +1,37 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: subscription-tracker-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=subtracker
+      - POSTGRES_PASSWORD=subtracker_password
+      - POSTGRES_DB=subscription_tracker
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U subtracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   subscription-tracker:
     image: ghcr.io/aungzm/subscription-tracker:latest
+    container_name: subscription-tracker-app
+    restart: unless-stopped
     ports:
       - "3000:3000"
-    volumes:
-      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
-      - DATABASE_URL=file:./data/db.sqlite
-      - NEXTAUTH_SECRET=
-      - NEXTAUTH_URL=
-      - VERCEL_URL=
+      - DATABASE_URL=postgresql://subtracker:subtracker_password@postgres:5432/subscription_tracker?schema=public
+      - NEXTAUTH_SECRET=change-this-to-a-random-secret-in-production
+      - NEXTAUTH_URL=http://localhost:3000
+
+volumes:
+  postgres_data:
