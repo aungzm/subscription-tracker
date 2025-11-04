@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { convertCurrency } from "@/lib/currency";
 
 interface Subscription {
   id: string;
   cost: number;
-  billingFrequency: string; 
+  currency: string;
+  billingFrequency: string;
   startDate: Date;
   endDate: Date | null;
   category: {
@@ -30,6 +32,18 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Get user's preferred currency
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { currency: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const userCurrency = user.currency;
 
     // Get all subscriptions for this user
     const subscriptions = await prisma.subscription.findMany({
@@ -70,29 +84,32 @@ export async function GET(request: NextRequest) {
       { id: string; name: string; color: string }
     > = {};
 
-    // Process each subscription
-    subscriptions.forEach((sub) => {
+    // Process each subscription with currency conversion
+    for (const sub of subscriptions) {
       const startYear = new Date(sub.startDate).getFullYear();
       const currentYear = new Date().getFullYear();
-      const endYear = sub.endDate 
+      const endYear = sub.endDate
         ? Math.min(new Date(sub.endDate).getFullYear(), currentYear)
         : currentYear;
-      
-      // Calculate yearly cost based on billing frequency
+
+      // Convert cost to user's preferred currency first
+      const convertedCost = await convertCurrency(sub.cost, sub.currency, userCurrency);
+
+      // Calculate yearly cost based on billing frequency (using converted cost)
       let yearlyCost: number;
       switch (sub.billingFrequency.toLowerCase()) {
         case "weekly":
-          yearlyCost = sub.cost * 52; // 52 weeks in a year
+          yearlyCost = convertedCost * 52; // 52 weeks in a year
           break;
         case "monthly":
-          yearlyCost = sub.cost * 12; // 12 months in a year
+          yearlyCost = convertedCost * 12; // 12 months in a year
           break;
         case "yearly":
         case "one-time": // One-time costs are counted in full
-          yearlyCost = sub.cost;
+          yearlyCost = convertedCost;
           break;
         default:
-          yearlyCost = sub.cost; // Default case
+          yearlyCost = convertedCost; // Default case
       }
 
       // Determine category
@@ -137,33 +154,33 @@ export async function GET(request: NextRequest) {
           if (yearIndex !== -1) {
             // Calculate prorated cost for partial years
             let effectiveYearlyCost = yearlyCost;
-            
+
             // Prorate for first year if subscription didn't start on Jan 1
             if (year === startYear) {
               const startDate = new Date(sub.startDate);
               const monthsActive = 12 - startDate.getMonth();
               if (sub.billingFrequency.toLowerCase() === "monthly") {
-                effectiveYearlyCost = sub.cost * monthsActive;
+                effectiveYearlyCost = convertedCost * monthsActive;
               } else if (sub.billingFrequency.toLowerCase() === "weekly") {
                 // Approximately 4.33 weeks per month
-                effectiveYearlyCost = sub.cost * monthsActive * 4.33;
+                effectiveYearlyCost = convertedCost * monthsActive * 4.33;
               } else if (sub.billingFrequency.toLowerCase() === "yearly") {
                 // Prorate yearly subscriptions based on months active
-                effectiveYearlyCost = (sub.cost * monthsActive) / 12;
+                effectiveYearlyCost = (convertedCost * monthsActive) / 12;
               }
             }
-            
+
             // Prorate for last year if subscription ends before Dec 31
             if (year === endYear && sub.endDate) {
               const endDate = new Date(sub.endDate);
               // +1 because getMonth() is 0-indexed
               const monthsActive = endDate.getMonth() + 1;
               if (sub.billingFrequency.toLowerCase() === "monthly") {
-                effectiveYearlyCost = sub.cost * monthsActive;
+                effectiveYearlyCost = convertedCost * monthsActive;
               } else if (sub.billingFrequency.toLowerCase() === "weekly") {
-                effectiveYearlyCost = sub.cost * monthsActive * 4.33;
+                effectiveYearlyCost = convertedCost * monthsActive * 4.33;
               } else if (sub.billingFrequency.toLowerCase() === "yearly") {
-                effectiveYearlyCost = (sub.cost * monthsActive) / 12;
+                effectiveYearlyCost = (convertedCost * monthsActive) / 12;
               }
             }
 
@@ -198,6 +215,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       yearlyData,
       categories: Object.values(categoryMeta),
+      currency: userCurrency,
     });
   } catch (error) {
     console.error("Error fetching yearly analytics:", error);

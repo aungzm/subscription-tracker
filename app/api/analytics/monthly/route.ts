@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { normalizeToMonthlyCost } from "@/lib/currency";
 
 interface Subscription {
   id: string;
   userId: string;
   cost: number;
-  billingFrequency: string; 
+  currency: string;
+  billingFrequency: string;
   startDate: Date;
   endDate: Date | null;
   category: {
@@ -32,6 +34,18 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Get user's preferred currency
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { currency: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const userCurrency = user.currency;
 
     // Get the year parameter from the query string (defaults to current year).
     const searchParams = request.nextUrl.searchParams;
@@ -79,7 +93,8 @@ export async function GET(request: NextRequest) {
       return { effectiveStart, effectiveEnd };
     };
 
-    subscriptions.forEach((sub) => {
+    // Process subscriptions with currency conversion
+    for (const sub of subscriptions) {
       const subStart = new Date(sub.startDate);
       const subEnd = sub.endDate ? new Date(sub.endDate) : null;
       const { effectiveStart, effectiveEnd } = getEffectiveRange(
@@ -89,12 +104,15 @@ export async function GET(request: NextRequest) {
 
       const startMonth = effectiveStart.getMonth();
       const endMonth = effectiveEnd.getMonth();
-      // - For monthly and yearly subscriptions, use cost as is.
-      // - For weekly subscriptions, multiply cost by 4.
-      let monthlyCost = sub.cost;
-      if (sub.billingFrequency === "weekly") {
-        monthlyCost = sub.cost * 4;
-      }
+
+      // Convert cost to user's preferred currency and normalize to monthly
+      const monthlyCost = await normalizeToMonthlyCost(
+        sub.cost,
+        sub.currency,
+        sub.billingFrequency,
+        userCurrency
+      );
+
       // Determine the group key for the category. If none is provided, use "uncategorized".
       let categoryKey = "uncategorized";
       if (sub.category) {
@@ -126,7 +144,7 @@ export async function GET(request: NextRequest) {
           (monthlyData[m][categoryKey] as number) + monthlyCost;
         monthlyData[m].total = (monthlyData[m].total as number) + monthlyCost;
       }
-    });
+    }
 
     // Round off numbers for cleaner display.
     monthlyData = monthlyData.map((month) => {
@@ -161,6 +179,7 @@ export async function GET(request: NextRequest) {
       years: uniqueYears,
       monthlyData,
       categories: Object.values(categoryMeta),
+      currency: userCurrency,
     });
   } catch (error) {
     console.error("Error fetching monthly analytics:", error);

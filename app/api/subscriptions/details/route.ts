@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db"; // Adjust import as needed
 import { addDays, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { auth } from "@/lib/auth";
+import { convertCurrency, normalizeToMonthlyCost } from "@/lib/currency";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -12,6 +13,19 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const userId = session.user.id;
+
+  // Get user's preferred currency
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { currency: true },
+  });
+
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  const userCurrency = user.currency;
+
   // Get all subscriptions for the user
   const subscriptions = await prisma.subscription.findMany({
     where: { userId },
@@ -63,48 +77,73 @@ export async function GET(req: NextRequest) {
     )
     .sort((a, b) => a.nextRenewal.getTime() - b.nextRenewal.getTime());
 
-  // Totals
+  // Totals with currency conversion
   let totalMonthly = 0;
   let totalYearly = 0;
   let activeSubscriptions = 0;
 
-  subscriptions.forEach((sub) => {
+  for (const sub of subscriptions) {
     if (!sub.endDate || new Date(sub.endDate) > today) {
       activeSubscriptions += 1;
-      if (sub.billingFrequency === "monthly") {
-        totalMonthly += sub.cost;
-        totalYearly += sub.cost * 12;
-      } else if (sub.billingFrequency === "yearly") {
-        totalYearly += sub.cost;
-      } else if (sub.billingFrequency === "weekly") {
-        totalMonthly += sub.cost * 4; // Approximate monthly cost
-        totalYearly += sub.cost * 52; // Approximate yearly cost
-      } // Add other billing frequencies as needed
+
+      // Convert subscription cost to user's preferred currency
+      const monthlyCostInUserCurrency = await normalizeToMonthlyCost(
+        sub.cost,
+        sub.currency,
+        sub.billingFrequency,
+        userCurrency
+      );
+
+      totalMonthly += monthlyCostInUserCurrency;
+      totalYearly += monthlyCostInUserCurrency * 12;
     }
-  });
+  }
+
+  // Convert costs for recent subscriptions
+  const convertedRecentSubscriptions = await Promise.all(
+    recentSubscriptions.map(async (sub) => {
+      const convertedCost = await convertCurrency(sub.cost, sub.currency, userCurrency);
+      return {
+        id: sub.id,
+        name: sub.name,
+        cost: Number(convertedCost.toFixed(2)),
+        currency: userCurrency,
+        originalCost: sub.cost,
+        originalCurrency: sub.currency,
+        billingFrequency: sub.billingFrequency,
+        startDate: sub.startDate,
+        category: sub.category?.name,
+        category_color: sub.category?.color,
+      };
+    })
+  );
+
+  // Convert costs for upcoming renewals
+  const convertedUpcomingRenewals = await Promise.all(
+    upcomingRenewals.map(async (sub) => {
+      const convertedCost = await convertCurrency(sub.cost, sub.currency, userCurrency);
+      return {
+        id: sub.id,
+        name: sub.name,
+        nextRenewal: sub.nextRenewal,
+        cost: Number(convertedCost.toFixed(2)),
+        currency: userCurrency,
+        originalCost: sub.cost,
+        originalCurrency: sub.currency,
+        billingFrequency: sub.billingFrequency,
+      };
+    })
+  );
 
   return NextResponse.json({
     totals: {
       totalMonthly: Number(totalMonthly.toFixed(2)),
       totalYearly: Number(totalYearly.toFixed(2)),
+      currency: userCurrency,
       activeSubscriptions,
       upcomingRenewals: upcomingRenewals.length,
     },
-    recentSubscriptions: recentSubscriptions.map((sub) => ({
-      id: sub.id,
-      name: sub.name,
-      cost: sub.cost,
-      billingFrequency: sub.billingFrequency,
-      startDate: sub.startDate,
-      category: sub.category?.name,
-      category_color: sub.category?.color,
-    })),
-    upcomingRenewals: upcomingRenewals.map((sub) => ({
-      id: sub.id,
-      name: sub.name,
-      nextRenewal: sub.nextRenewal,
-      cost: sub.cost,
-      billingFrequency: sub.billingFrequency,
-    })),
+    recentSubscriptions: convertedRecentSubscriptions,
+    upcomingRenewals: convertedUpcomingRenewals,
   });
 }

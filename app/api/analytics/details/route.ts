@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { normalizeToMonthlyCost, convertCurrency } from "@/lib/currency";
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +10,18 @@ export async function GET(request: NextRequest) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Get user's preferred currency
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { currency: true },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const userCurrency = user.currency;
 
     // Get all active subscriptions for this user
     const subscriptions = await prisma.subscription.findMany({
@@ -24,72 +37,51 @@ export async function GET(request: NextRequest) {
 
     if (subscriptions.length === 0) {
       return NextResponse.json({
-        averageMonthly: { value: 0, currency: "USD" },
-        averageYearly: { value: 0, currency: "USD" },
+        averageMonthly: { value: 0, currency: userCurrency },
+        averageYearly: { value: 0, currency: userCurrency },
         largestExpense: null
       });
     }
 
-    // Calculate total monthly cost
+    // Calculate total monthly cost with currency conversion
     let totalMonthly = 0;
-    let defaultCurrency = "USD";
-
-    subscriptions.forEach(sub => {
-      // Use the first subscription's currency as the default
-      if (!defaultCurrency && sub.currency) {
-        defaultCurrency = sub.currency;
-      }
-
-      // Convert costs based on billing frequency
-      if (sub.billingFrequency.toLowerCase() === "weekly") {
-        totalMonthly += sub.cost * 4; // Approximately 4 weeks in a month
-      } else if (sub.billingFrequency.toLowerCase() === "monthly") {
-        totalMonthly += sub.cost;
-      } else if (sub.billingFrequency.toLowerCase() === "yearly") {
-        totalMonthly += sub.cost / 12; // Divide annual cost by 12 for monthly equivalent
-      }
-      // Note: One-time payments aren't included in the recurring monthly average
-    });
+    for (const sub of subscriptions) {
+      const monthlyCost = await normalizeToMonthlyCost(
+        sub.cost,
+        sub.currency,
+        sub.billingFrequency,
+        userCurrency
+      );
+      totalMonthly += monthlyCost;
+    }
 
     // Calculate total yearly cost
-    let totalYearly = 0;
-    subscriptions.forEach(sub => {
-      if (sub.billingFrequency.toLowerCase() === "weekly") {
-        totalYearly += sub.cost * 52; // 52 weeks in a year
-      } else if (sub.billingFrequency.toLowerCase() === "monthly") {
-        totalYearly += sub.cost * 12; // 12 months in a year
-      } else if (sub.billingFrequency.toLowerCase() === "yearly") {
-        totalYearly += sub.cost;
-      }
-      // Note: One-time payments aren't included in the recurring yearly average
-    });
+    let totalYearly = totalMonthly * 12;
 
     // Find most expensive subscription (normalized to monthly cost for comparison)
     let largestExpense = null;
     let highestNormalizedCost = 0;
 
-    subscriptions.forEach(sub => {
-      let normalizedMonthlyCost = 0;
-      
-      // Convert all subscription costs to monthly for comparison
-      if (sub.billingFrequency.toLowerCase() === "weekly") {
-        normalizedMonthlyCost = sub.cost * 4;
-      } else if (sub.billingFrequency.toLowerCase() === "monthly") {
-        normalizedMonthlyCost = sub.cost;
-      } else if (sub.billingFrequency.toLowerCase() === "yearly") {
-        normalizedMonthlyCost = sub.cost / 12;
-      } else if (sub.billingFrequency.toLowerCase() === "one-time") {
-        // For one-time payments, we'll consider them as monthly for comparison purposes
-        normalizedMonthlyCost = sub.cost;
-      }
+    for (const sub of subscriptions) {
+      // Convert to monthly cost in user's currency
+      const normalizedMonthlyCost = await normalizeToMonthlyCost(
+        sub.cost,
+        sub.currency,
+        sub.billingFrequency,
+        userCurrency
+      );
 
       if (normalizedMonthlyCost > highestNormalizedCost) {
         highestNormalizedCost = normalizedMonthlyCost;
+        // Also convert the original cost to user's currency for display
+        const convertedCost = await convertCurrency(sub.cost, sub.currency, userCurrency);
         largestExpense = {
           id: sub.id,
           name: sub.name,
-          cost: sub.cost,
-          currency: sub.currency || defaultCurrency,
+          cost: parseFloat(convertedCost.toFixed(2)),
+          originalCost: sub.cost,
+          originalCurrency: sub.currency,
+          currency: userCurrency,
           billingFrequency: sub.billingFrequency,
           normalizedMonthlyCost: parseFloat(normalizedMonthlyCost.toFixed(2)),
           category: sub.category ? {
@@ -99,7 +91,7 @@ export async function GET(request: NextRequest) {
           } : null
         };
       }
-    });
+    }
 
     // Round to 2 decimal places
     const roundedMonthly = parseFloat(totalMonthly.toFixed(2));
@@ -108,11 +100,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       averageMonthly: {
         value: roundedMonthly,
-        currency: defaultCurrency
+        currency: userCurrency
       },
       averageYearly: {
         value: roundedYearly,
-        currency: defaultCurrency
+        currency: userCurrency
       },
       largestExpense
     });
