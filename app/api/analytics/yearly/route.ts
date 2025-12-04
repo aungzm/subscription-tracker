@@ -196,7 +196,7 @@ export async function GET(request: NextRequest) {
           }
         }
       }
-    });
+    }
 
     // Round off numbers for cleaner display
     yearlyData = yearlyData.map(yearData => {
