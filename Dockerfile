@@ -1,17 +1,12 @@
 FROM node:20 AS builder
 
-ARG DATABASE_URL
-ARG NEXTAUTH_URL
-ARG NEXTAUTH_SECRET
-
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm install --frozen-lockfile
 
-ENV DATABASE_URL=${DATABASE_URL}
-ENV NEXTAUTH_URL=${NEXTAUTH_URL}
-ENV NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+# Dummy DATABASE_URL for prisma generate (doesn't actually connect)
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 
 COPY . .
 
