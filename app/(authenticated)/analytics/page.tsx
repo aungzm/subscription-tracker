@@ -41,11 +41,11 @@ export default function AnalyticsPage() {
     async function fetchData() {
       try {
         const response = await fetch('/api/analytics/details')
-        
+
         if (!response.ok) {
           throw new Error(`Error: ${response.status}`)
         }
-        
+
         const analyticsData = await response.json()
         setData(analyticsData)
       } catch (err) {
@@ -72,7 +72,7 @@ export default function AnalyticsPage() {
   // Determine what to display for largest expense based on billing frequency
   const formatLargestExpenseDetails = (expense: LargestExpense | null) => {
     if (!expense) return { name: 'No subscriptions', cost: 'N/A' }
-    
+
     let costDisplay = ''
     switch (expense.billingFrequency.toLowerCase()) {
       case 'weekly':
@@ -90,12 +90,12 @@ export default function AnalyticsPage() {
       default:
         costDisplay = formatCurrency(expense.cost, expense.currency)
     }
-    
+
     return { name: expense.name, cost: costDisplay }
   }
 
-  const largestExpense = data?.largestExpense 
-    ? formatLargestExpenseDetails(data.largestExpense) 
+  const largestExpense = data?.largestExpense
+    ? formatLargestExpenseDetails(data.largestExpense)
     : { name: 'Loading...', cost: '' }
 
   return (
@@ -103,7 +103,7 @@ export default function AnalyticsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Analytics</h2>
       </div>
-      
+
       {/* Overview Section */}
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -113,10 +113,10 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loading 
-                  ? "Loading..." 
-                  : error 
-                    ? "Error loading data" 
+                {loading
+                  ? "Loading..."
+                  : error
+                    ? "Error loading data"
                     : formatCurrency(data?.averageMonthly.value || 0, data?.averageMonthly.currency)
                 }
               </div>
@@ -125,17 +125,17 @@ export default function AnalyticsPage() {
               </p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Average Yearly</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loading 
-                  ? "Loading..." 
-                  : error 
-                    ? "Error loading data" 
+                {loading
+                  ? "Loading..."
+                  : error
+                    ? "Error loading data"
                     : formatCurrency(data?.averageYearly.value || 0, data?.averageYearly.currency)
                 }
               </div>
@@ -144,7 +144,7 @@ export default function AnalyticsPage() {
               </p>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Largest Expense</CardTitle>
@@ -159,7 +159,7 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
@@ -169,7 +169,7 @@ export default function AnalyticsPage() {
               <MonthlyTrend />
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Yearly Trend</CardTitle>
@@ -180,7 +180,7 @@ export default function AnalyticsPage() {
             <CardContent className="pl-2">
               <YearlyTrend />
             </CardContent>
-          </Card>          
+          </Card>
         </div>
       </div>
     </div>

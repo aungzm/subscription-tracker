@@ -1,7 +1,7 @@
 import type React from "react"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
-import { ClientDashboardLayout } from "./client-layout" // Import the new client layout
+import { ClientDashboardLayout } from "./client-layout"
 
 // Define a type for the session user for clarity
 interface SessionUser {
@@ -16,7 +16,7 @@ interface LayoutSession {
   user?: SessionUser | null
 }
 
-export default async function DashboardLayout({
+export default async function AuthenticatedLayout({
   children,
 }: {
   children: React.ReactNode

@@ -32,7 +32,7 @@ export function ClientDashboardLayout({
 
   // Ensure user exists before rendering UserNav
   if (!session?.user) {
-    return null 
+    return null
   }
 
   return (
