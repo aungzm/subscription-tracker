@@ -29,16 +29,23 @@ const formSchema = z.object({
 
 type LoginFormValues = z.infer<typeof formSchema>
 
+const DEMO_CREDENTIALS = {
+  email: "alice@example.com",
+  password: "hashedpassword1",
+}
+
 export function LoginForm() {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  const isDemo = process.env.DEMO_MODE === "true"
+
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
-      password: "",
+      email: isDemo ? DEMO_CREDENTIALS.email : "",
+      password: isDemo ? DEMO_CREDENTIALS.password : "",
     },
   })
 
