@@ -39,7 +39,7 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  const isDemo = process.env.DEMO_MODE === "true"
+  const isDemo = process.env.NEXT_PUBLIC_DEMO_MODE === "true"
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
