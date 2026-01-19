@@ -3,7 +3,7 @@ FROM node:20 AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --frozen-lockfile
+RUN npm ci
 
 # Dummy DATABASE_URL for prisma generate (doesn't actually connect)
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
