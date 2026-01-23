@@ -191,19 +191,23 @@ export function MonthlyTrend() {
   )
 }
 
+interface CustomTooltipProps extends TooltipProps<ValueType, NameType> {
+  categories: CategoryMeta[];
+}
+
 function CustomTooltip({ 
   active, 
   payload, 
   label, 
   categories 
-}: TooltipProps<ValueType, NameType> & { categories: CategoryMeta[] }) {
+}: CustomTooltipProps) {
   if (active && payload && payload.length) {
     return (
       <div className="rounded-md border bg-background p-2 shadow-sm">
         <div className="mb-1 font-medium">{label}</div>
         {categories.map((cat) => {
           const catPayload = payload.find(p => p.dataKey === cat.id);
-          // Skip categories with no data for this month
+          
           if (!catPayload || !catPayload.value) return null;
           
           return (
@@ -217,13 +221,14 @@ function CustomTooltip({
               />
               <span>{cat.name}:</span>
               <span className="ml-auto font-mono">
-                ${catPayload?.value?.toLocaleString() || 0}
+                ${catPayload.value.toLocaleString()}
               </span>
             </div>
           );
         })}
         <div className="mt-1 border-t pt-1 text-sm font-bold">
-          Total: ${payload[0]?.payload.total?.toLocaleString() || 0}
+          {/* Use optional chaining for total to satisfy the compiler */}
+          Total: ${payload[0]?.payload?.total?.toLocaleString() || 0}
         </div>
       </div>
     )
