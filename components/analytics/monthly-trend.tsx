@@ -38,7 +38,7 @@ type ApiResponse = {
   categories: CategoryMeta[];
 };
 
-export default function MonthlyTrend() {
+export function MonthlyTrend() {
   const currentYear = new Date().getFullYear();
 
   const [selectedYear, setSelectedYear] = React.useState(
@@ -195,3 +195,5 @@ function CustomTooltip(props: {
     </div>
   );
 }
+
+export default MonthlyTrend;
