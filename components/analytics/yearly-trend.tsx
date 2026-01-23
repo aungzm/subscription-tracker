@@ -8,7 +8,6 @@ import {
   Tooltip,
   Legend,
   CartesianGrid,
-  ResponsiveContainer
 } from "recharts"
 import { ChartContainer } from "@/components/ui/chart"
 
@@ -175,10 +174,12 @@ export function YearlyTrend() {
 
 type CustomTooltipProps = {
   active?: boolean
-  payload?: any[]
-  label?: string | number
+  label?: string
+  payload?: readonly any[];
   categories: CategoryMeta[]
 }
+
+
 
 function CustomTooltip({
   active,
