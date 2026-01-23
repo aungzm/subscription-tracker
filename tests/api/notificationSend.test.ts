@@ -1,7 +1,8 @@
-import { sendWebhook, sendEmail, POST } from "@/app/api/notificationProvider/send/route";
+import { POST } from "@/app/api/notificationProvider/send/route";
+import { sendWebhook, sendEmail } from "@/lib/notification";
+import type { ProviderData } from "@/lib/notification";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import type { ProviderData } from "@/app/api/notificationProvider/send/route";
 import type { ExtendedSession } from "@/lib/auth";
 
 jest.mock("@/lib/auth", () => ({ auth: jest.fn() }));
