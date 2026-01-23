@@ -9,6 +9,7 @@ import { CalendarIcon, Plus, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
+import type { Resolver } from "react-hook-form"
 import {
   Form,
   FormControl,
@@ -230,10 +231,9 @@ export function SubscriptionForm({
   }
 
   const form = useForm<SubscriptionFormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(formSchema) as unknown as Resolver<SubscriptionFormValues>,
     defaultValues,
   })
-
   // Field array for managing multiple reminders
   const { fields, append, remove } = useFieldArray({
     control: form.control,
