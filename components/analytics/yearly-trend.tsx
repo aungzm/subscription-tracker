@@ -174,7 +174,7 @@ export function YearlyTrend() {
 
 type CustomTooltipProps = {
   active?: boolean
-  label?: string
+  label?: string | number
   payload?: readonly any[];
   categories: CategoryMeta[]
 }
