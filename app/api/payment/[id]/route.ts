@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 // GET: Get a single payment method by id
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -13,6 +13,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const params = await context.params;
     const paymentMethod = await prisma.paymentMethod.findFirst({
       where: { id: params.id, userId: session.user.id },
     });
@@ -86,7 +87,7 @@ export async function PATCH(
 // DELETE: Delete a payment method by id
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -94,6 +95,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const params = await context.params;
     // Ensure the payment method belongs to the current user.
     const paymentMethod = await prisma.paymentMethod.findFirst({
       where: { id: params.id, userId: session.user.id },

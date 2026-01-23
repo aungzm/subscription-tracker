@@ -129,7 +129,7 @@ export async function PUT(
 // DELETE a subscription by id
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -138,6 +138,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const params = await context.params;
     const id = params.id;
 
     // Ensure the subscription belongs to the current user

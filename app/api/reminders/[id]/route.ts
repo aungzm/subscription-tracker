@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 // GET a single reminder by id
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -13,6 +13,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const params = await context.params;
     const reminder = await prisma.reminder.findFirst({
       where: { id: params.id, userId: session.user.id },
       include: { subscription: true },
@@ -85,7 +86,7 @@ export async function PUT(
 // DELETE a reminder by id
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
@@ -93,6 +94,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const params = await context.params;
     // Verify that the reminder belongs to the current user
     const existingReminder = await prisma.reminder.findFirst({
       where: { id: params.id, userId: session.user.id },

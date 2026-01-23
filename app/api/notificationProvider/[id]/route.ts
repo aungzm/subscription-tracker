@@ -15,13 +15,14 @@ function validateProviderFields(body: any) {
 // GET: Get a single Notification Provider by id
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const params = await context.params;
     const provider = await prisma.notificationProvider.findUnique({
       where: { id: params.id }
     });
@@ -89,13 +90,14 @@ export async function PUT(
 // DELETE: Remove a Notification Provider by id
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const params = await context.params;
     // Verify ownership
     const provider = await prisma.notificationProvider.findUnique({
       where: { id: params.id },

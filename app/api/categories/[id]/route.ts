@@ -5,13 +5,14 @@ import { prisma } from "@/lib/db";
 // GET /api/categories/:id - Get a specific category
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const params = await context.params;
     const category = await prisma.category.findFirst({
       where: {
         id: params.id,
