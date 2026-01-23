@@ -9,9 +9,10 @@ import {
   XAxis, 
   YAxis 
 } from "recharts"
+
 import { ChartContainer } from "@/components/ui/chart"
-import { TooltipProps } from "recharts/types/component/Tooltip"
-import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent"
+import type { TooltipProps } from "recharts/types/component/Tooltip";
+import type { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent";
 import {
   Select,
   SelectContent,
@@ -193,10 +194,10 @@ export function MonthlyTrend() {
 
 
 
-interface CustomTooltipProps extends TooltipProps<ValueType, NameType> {
+interface CustomTooltipProps
+  extends TooltipProps<ValueType, NameType> {
   categories: CategoryMeta[];
 }
-
 
 function CustomTooltip({ 
   active, 
