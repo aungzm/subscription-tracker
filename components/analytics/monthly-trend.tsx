@@ -193,10 +193,7 @@ export function MonthlyTrend() {
 
 
 
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: readonly any[]; 
-  label?: string;
+interface CustomTooltipProps extends TooltipProps<ValueType, NameType> {
   categories: CategoryMeta[];
 }
 
