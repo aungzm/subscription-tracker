@@ -227,7 +227,7 @@ function CustomTooltip({
           );
         })}
         <div className="mt-1 border-t pt-1 text-sm font-bold">
-          {/* Use optional chaining for total to satisfy the compiler */}
+          {/* Using optional chaining for total to satisfy the compiler */}
           Total: ${payload[0]?.payload?.total?.toLocaleString() || 0}
         </div>
       </div>
