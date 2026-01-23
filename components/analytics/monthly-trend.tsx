@@ -191,12 +191,15 @@ export function MonthlyTrend() {
   )
 }
 
+
+
 interface CustomTooltipProps {
   active?: boolean;
-  payload?: any[]; // Explicitly define payload
+  payload?: readonly any[]; 
   label?: string;
   categories: CategoryMeta[];
 }
+
 
 function CustomTooltip({ 
   active, 
@@ -211,7 +214,7 @@ function CustomTooltip({
         {categories.map((cat) => {
           const catPayload = payload.find(p => p.dataKey === cat.id);
           
-          if (!catPayload || !catPayload.value) return null;
+          if (!catPayload || catPayload.value === undefined) return null;
           
           return (
             <div
@@ -224,13 +227,12 @@ function CustomTooltip({
               />
               <span>{cat.name}:</span>
               <span className="ml-auto font-mono">
-                ${catPayload.value.toLocaleString()}
+                ${Number(catPayload.value).toLocaleString()}
               </span>
             </div>
           );
         })}
         <div className="mt-1 border-t pt-1 text-sm font-bold">
-          {/* Using optional chaining for total to satisfy the compiler */}
           Total: ${payload[0]?.payload?.total?.toLocaleString() || 0}
         </div>
       </div>
@@ -238,5 +240,4 @@ function CustomTooltip({
   }
   return null
 }
-
 export default MonthlyTrend
