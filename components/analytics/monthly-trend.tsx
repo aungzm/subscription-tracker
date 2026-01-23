@@ -157,7 +157,7 @@ export function MonthlyTrend() {
 function CustomTooltip(props: {
   active?: boolean;
   payload?: readonly any[];
-  label?: string;
+  label?: string | number;
   categories: CategoryMeta[];
 }) {
   const { active, payload, label, categories } = props;
