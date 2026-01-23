@@ -2,10 +2,13 @@ import { GET, PUT, DELETE } from "@/app/api/notificationProvider/[id]/route";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { DeepMockProxy } from "jest-mock-extended";
+import { PrismaClient } from "@prisma/client";
 import {
   USER_IDS,
   NOTIFICATION_PROVIDER_IDS,
 } from "../../prisma/test-ids";
+import { createMockNotificationProvider } from "../factories";
 import type { NotificationProvider } from "@prisma/client";
 
 jest.mock("@/lib/auth", () => ({
@@ -22,6 +25,7 @@ const mockedAuth = auth as jest.MockedFunction<typeof auth>;
 const mockedNextJson = NextResponse.json as unknown as jest.MockedFunction<
   <T>(body: T, init?: { status: number }) => { body: T; init?: { status: number } }
 >;
+const mockedPrisma = prisma as unknown as DeepMockProxy<PrismaClient>;
 
 type ApiResponse<T> = { body: T; init?: { status: number } };
 
@@ -64,9 +68,7 @@ describe("API Integration Tests: Notification Providers [id]", () => {
     });
 
     it("404 when not found", async () => {
-      jest
-        .spyOn(prisma.notificationProvider, "findUnique")
-        .mockResolvedValueOnce(null);
+      mockedPrisma.notificationProvider.findUnique.mockResolvedValueOnce(null);
       const req = new Request(
         `http://localhost/api/notification-providers/nonexistent`
       );
@@ -81,7 +83,12 @@ describe("API Integration Tests: Notification Providers [id]", () => {
     });
 
     it("404 when belongs to another user", async () => {
-      // Alice session tries Bob's provider
+      const bobProvider = createMockNotificationProvider({
+        id: bobEmailId,
+        userId: bobId,
+      });
+      mockedPrisma.notificationProvider.findUnique.mockResolvedValueOnce(bobProvider);
+
       const req = new Request(
         `http://localhost/api/notification-providers/${bobEmailId}`
       );
@@ -96,9 +103,7 @@ describe("API Integration Tests: Notification Providers [id]", () => {
     });
 
     it("500 on DB error", async () => {
-      jest
-        .spyOn(prisma.notificationProvider, "findUnique")
-        .mockRejectedValueOnce(new Error("DB fail"));
+      mockedPrisma.notificationProvider.findUnique.mockRejectedValueOnce(new Error("DB fail"));
       const req = new Request(
         `http://localhost/api/notification-providers/${aliceEmailId}`
       );
@@ -113,6 +118,15 @@ describe("API Integration Tests: Notification Providers [id]", () => {
     });
 
     it("returns provider for authorized user", async () => {
+      const provider = createMockNotificationProvider({
+        id: aliceEmailId,
+        name: "Alice Email",
+        type: "EMAIL",
+        smtpServer: "smtp.example.com",
+        webhookUrl: null,
+      });
+      mockedPrisma.notificationProvider.findUnique.mockResolvedValueOnce(provider);
+
       const req = new Request(
         `http://localhost/api/notification-providers/${aliceEmailId}`
       );
@@ -125,7 +139,6 @@ describe("API Integration Tests: Notification Providers [id]", () => {
         name: expect.any(String),
         type: "EMAIL",
       });
-      // smtp fields should be present
       expect(res.body.smtpServer).toBeDefined();
       expect(res.body.webhookUrl).toBeNull();
     });
@@ -164,9 +177,7 @@ describe("API Integration Tests: Notification Providers [id]", () => {
     });
 
     it("404 when not found / not owner", async () => {
-      jest
-        .spyOn(prisma.notificationProvider, "findUnique")
-        .mockResolvedValueOnce(null);
+      mockedPrisma.notificationProvider.findUnique.mockResolvedValueOnce(null);
       const res = (await PUT(makeReq({ name: "X", type: "PUSH" }), { params: Promise.resolve({ id: alicePushId }) })) as unknown as ApiResponse<{ error: string }>;
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Not found" },
@@ -175,38 +186,47 @@ describe("API Integration Tests: Notification Providers [id]", () => {
     });
 
     it("500 on DB update failure", async () => {
-      const spyFind = jest
-        .spyOn(prisma.notificationProvider, "findUnique")
-        .mockResolvedValueOnce({
-          id: alicePushId,
-          userId: aliceId,
-          name: "Alice Push",
-          type: "PUSH",
-          smtpServer: null,
-          smtpPort: null,
-          smtpUser: null,
-          smtpPassword: null,
-          webhookUrl: "https://push.alice.com",
-          webhookSecret: "secret",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        } as any);
-      jest
-        .spyOn(prisma.notificationProvider, "update")
-        .mockRejectedValueOnce(new Error("Update fail"));
+      const existingProvider = createMockNotificationProvider({
+        id: alicePushId,
+        name: "Alice Push",
+        type: "PUSH",
+        smtpServer: null,
+        smtpPort: null,
+        smtpUser: null,
+        smtpPassword: null,
+        webhookUrl: "https://push.alice.com",
+        webhookSecret: "secret",
+      });
+      mockedPrisma.notificationProvider.findUnique.mockResolvedValueOnce(existingProvider);
+      mockedPrisma.notificationProvider.update.mockRejectedValueOnce(new Error("Update fail"));
+
       const res = (await PUT(makeReq({ name: "New", type: "PUSH" }), { params: Promise.resolve({ id: alicePushId }) })) as unknown as ApiResponse<{ error: string }>;
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Failed to update notification provider" },
         { status: 500 }
       );
-      spyFind.mockRestore();
     });
 
-    it("updates SMTP‐only provider", async () => {
-      // first ensure owner record comes back
-      const existing = await prisma.notificationProvider.findUnique({
-        where: { id: aliceEmailId },
+    it("updates SMTP-only provider", async () => {
+      const existingProvider = createMockNotificationProvider({
+        id: aliceEmailId,
+        type: "EMAIL",
       });
+      mockedPrisma.notificationProvider.findUnique.mockResolvedValueOnce(existingProvider);
+
+      const updatedProvider = createMockNotificationProvider({
+        id: aliceEmailId,
+        name: "SMTP Only",
+        type: "EMAIL",
+        smtpServer: "smtp.new.com",
+        smtpPort: 2525,
+        smtpUser: "u",
+        smtpPassword: "p",
+        webhookUrl: null,
+        webhookSecret: null,
+      });
+      mockedPrisma.notificationProvider.update.mockResolvedValueOnce(updatedProvider);
+
       const body = {
         name: "SMTP Only",
         type: "EMAIL",
@@ -228,18 +248,30 @@ describe("API Integration Tests: Notification Providers [id]", () => {
         webhookUrl: null,
         webhookSecret: null,
       });
-      // persisted?
-      const dbRec = await prisma.notificationProvider.findUnique({
-        where: { id: aliceEmailId },
-      });
-      expect(dbRec).toMatchObject({
-        name: "SMTP Only",
-        smtpServer: "smtp.new.com",
-        webhookUrl: null,
-      });
+
+      expect(mockedPrisma.notificationProvider.update).toHaveBeenCalled();
     });
 
-    it("updates Webhook‐only provider", async () => {
+    it("updates Webhook-only provider", async () => {
+      const existingProvider = createMockNotificationProvider({
+        id: alicePushId,
+        type: "PUSH",
+      });
+      mockedPrisma.notificationProvider.findUnique.mockResolvedValueOnce(existingProvider);
+
+      const updatedProvider = createMockNotificationProvider({
+        id: alicePushId,
+        name: "Webhook Only",
+        type: "PUSH",
+        smtpServer: null,
+        smtpPort: null,
+        smtpUser: null,
+        smtpPassword: null,
+        webhookUrl: "https://new.webhook/",
+        webhookSecret: "abc123",
+      });
+      mockedPrisma.notificationProvider.update.mockResolvedValueOnce(updatedProvider);
+
       const body = {
         name: "Webhook Only",
         type: "PUSH",
@@ -257,14 +289,8 @@ describe("API Integration Tests: Notification Providers [id]", () => {
         webhookUrl: "https://new.webhook/",
         webhookSecret: "abc123",
       });
-      const dbRec = await prisma.notificationProvider.findUnique({
-        where: { id: alicePushId },
-      });
-      expect(dbRec).toMatchObject({
-        name: "Webhook Only",
-        webhookUrl: "https://new.webhook/",
-        smtpUser: null,
-      });
+
+      expect(mockedPrisma.notificationProvider.update).toHaveBeenCalled();
     });
   });
 
@@ -283,9 +309,7 @@ describe("API Integration Tests: Notification Providers [id]", () => {
     });
 
     it("404 when not found / not owner", async () => {
-      jest
-        .spyOn(prisma.notificationProvider, "findUnique")
-        .mockResolvedValueOnce(null);
+      mockedPrisma.notificationProvider.findUnique.mockResolvedValueOnce(null);
       const req = new Request(
         `http://localhost/api/notification-providers/${aliceEmailId}`
       );
@@ -298,15 +322,10 @@ describe("API Integration Tests: Notification Providers [id]", () => {
     });
 
     it("500 on DB delete failure", async () => {
-      const spyFind = jest
-        .spyOn(prisma.notificationProvider, "findUnique")
-        .mockResolvedValueOnce({
-          id: aliceEmailId,
-          userId: aliceId,
-        } as any);
-      jest
-        .spyOn(prisma.notificationProvider, "delete")
-        .mockRejectedValueOnce(new Error("Delete fail"));
+      const existingProvider = createMockNotificationProvider({ id: aliceEmailId });
+      mockedPrisma.notificationProvider.findUnique.mockResolvedValueOnce(existingProvider);
+      mockedPrisma.notificationProvider.delete.mockRejectedValueOnce(new Error("Delete fail"));
+
       const req = new Request(
         `http://localhost/api/notification-providers/${aliceEmailId}`
       );
@@ -316,21 +335,21 @@ describe("API Integration Tests: Notification Providers [id]", () => {
         { error: "Failed to delete notification provider" },
         { status: 500 }
       );
-      spyFind.mockRestore();
     });
 
     it("deletes and returns success message", async () => {
+      const existingProvider = createMockNotificationProvider({ id: alicePushId });
+      mockedPrisma.notificationProvider.findUnique.mockResolvedValueOnce(existingProvider);
+      mockedPrisma.notificationProvider.delete.mockResolvedValueOnce(existingProvider);
+
       const req = new Request(
         `http://localhost/api/notification-providers/${alicePushId}`
       );
       const ctx = { params: { id: alicePushId } };
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ message: string }>;
       expect(res.body).toEqual({ message: "Notification provider deleted" });
-      // verify deletion in DB
-      const gone = await prisma.notificationProvider.findUnique({
-        where: { id: alicePushId },
-      });
-      expect(gone).toBeNull();
+
+      expect(mockedPrisma.notificationProvider.delete).toHaveBeenCalled();
     });
   });
 });

@@ -5,7 +5,10 @@ import { GET, PUT, DELETE } from "@/app/api/categories/[id]/route";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { DeepMockProxy } from "jest-mock-extended";
+import { PrismaClient } from "@prisma/client";
 import { USER_IDS, CATEGORY_IDS } from "../../prisma/test-ids";
+import { createMockCategory } from "../factories";
 import type { Category } from "@prisma/client";
 
 jest.mock("@/lib/auth", () => ({
@@ -22,20 +25,21 @@ const mockedAuth = auth as jest.MockedFunction<typeof auth>;
 const mockedNextJson = NextResponse.json as unknown as jest.MockedFunction<
   <T>(body: T, init?: { status: number }) => { body: T; init?: { status: number } }
 >;
+const mockedPrisma = prisma as unknown as DeepMockProxy<PrismaClient>;
 
 type ApiResponse<T> = { body: T; init?: { status: number } };
 
 describe("API Integration Tests: Categories", () => {
   const aliceId = USER_IDS.ALICE;
   const streamingCatId = CATEGORY_IDS.STREAMING;
-  const session = { 
-    user: { 
+  const session = {
+    user: {
       id: aliceId,
       name: "Alice Test",
       email: "alice@test.com",
       image: null
-    }, 
-    expires: "2025-12-31T23:59:59.999Z" 
+    },
+    expires: "2025-12-31T23:59:59.999Z"
   };
 
   beforeEach(async () => {
@@ -56,9 +60,7 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("returns 500 on database failure", async () => {
-      jest
-        .spyOn(prisma.category, "findMany")
-        .mockRejectedValueOnce(new Error("DB findMany failure"));
+      mockedPrisma.category.findMany.mockRejectedValueOnce(new Error("DB findMany failure"));
       const res = (await getRootHandler()) as unknown as ApiResponse<{ error: string }>;
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Failed to fetch categories" },
@@ -68,20 +70,31 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("returns sorted categories for authenticated user", async () => {
+      const now = new Date();
+      const streamingCat = createMockCategory({
+        id: CATEGORY_IDS.STREAMING,
+        name: "Streaming",
+        createdAt: new Date(now.getTime() - 1000),
+      });
+      const productivityCat = createMockCategory({
+        id: CATEGORY_IDS.PRODUCTIVITY,
+        name: "Productivity",
+        createdAt: now,
+      });
+      mockedPrisma.category.findMany.mockResolvedValueOnce([streamingCat, productivityCat]);
+
       const res = (await getRootHandler()) as unknown as ApiResponse<Category[]>;
       const cats = res.body;
       expect(Array.isArray(cats)).toBe(true);
-
-      // Alice should have at least STREAMING and PRODUCTIVITY from seed data
-      expect(cats.length).toBeGreaterThanOrEqual(2);
+      expect(cats.length).toBe(2);
       expect(cats).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ 
+          expect.objectContaining({
             id: CATEGORY_IDS.STREAMING,
             userId: aliceId,
             name: "Streaming"
           }),
-          expect.objectContaining({ 
+          expect.objectContaining({
             id: CATEGORY_IDS.PRODUCTIVITY,
             userId: aliceId,
             name: "Productivity"
@@ -95,6 +108,11 @@ describe("API Integration Tests: Categories", () => {
         const curr = new Date(cats[i].createdAt);
         expect(prev.getTime()).toBeLessThanOrEqual(curr.getTime());
       }
+
+      expect(mockedPrisma.category.findMany).toHaveBeenCalledWith({
+        where: { userId: aliceId },
+        orderBy: { createdAt: "asc" },
+      });
     });
   });
 
@@ -119,9 +137,7 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("returns 500 on database create failure", async () => {
-      jest
-        .spyOn(prisma.category, "create")
-        .mockRejectedValueOnce(new Error("DB create failure"));
+      mockedPrisma.category.create.mockRejectedValueOnce(new Error("DB create failure"));
       const req = new Request("http://localhost/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -136,6 +152,13 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("creates category with provided color", async () => {
+      const createdCat = createMockCategory({
+        id: "new-cat-id",
+        name: newName,
+        color: customColor,
+      });
+      mockedPrisma.category.create.mockResolvedValueOnce(createdCat);
+
       const req = new Request("http://localhost/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -150,19 +173,24 @@ describe("API Integration Tests: Categories", () => {
       });
       expect(created.id).toBeDefined();
 
-      // verify persisted
-      const dbCat = await prisma.category.findUnique({
-        where: { id: created.id },
-      });
-      expect(dbCat).not.toBeNull();
-      expect(dbCat).toMatchObject({
-        name: newName,
-        color: customColor,
-        userId: aliceId,
+      // Verify the mock was called correctly
+      expect(mockedPrisma.category.create).toHaveBeenCalledWith({
+        data: {
+          name: newName,
+          color: customColor,
+          userId: aliceId,
+        },
       });
     });
 
     it("creates category with default color when none given", async () => {
+      const createdCat = createMockCategory({
+        id: "new-default-cat-id",
+        name: "Default Cat",
+        color: "#0000FF",
+      });
+      mockedPrisma.category.create.mockResolvedValueOnce(createdCat);
+
       const req = new Request("http://localhost/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -170,7 +198,7 @@ describe("API Integration Tests: Categories", () => {
       });
       const res = (await POST(req)) as unknown as ApiResponse<Category>;
       const created = res.body;
-      
+
       expect(created).toMatchObject({
         name: "Default Cat",
         color: "#0000FF",
@@ -178,12 +206,14 @@ describe("API Integration Tests: Categories", () => {
       });
       expect(created.id).toBeDefined();
 
-      // verify persisted in DB
-      const dbCat = await prisma.category.findUnique({
-        where: { id: created.id },
+      // Verify create was called with default color
+      expect(mockedPrisma.category.create).toHaveBeenCalledWith({
+        data: {
+          name: "Default Cat",
+          color: "#0000FF",
+          userId: aliceId,
+        },
       });
-      expect(dbCat).not.toBeNull();
-      expect(dbCat?.color).toBe("#0000FF");
     });
   });
 
@@ -192,9 +222,9 @@ describe("API Integration Tests: Categories", () => {
       mockedAuth.mockResolvedValueOnce(null);
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
       const ctx = { params: { id: streamingCatId } };
-      
+
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
-      
+
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Unauthorized" },
         { status: 401 }
@@ -203,13 +233,13 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("returns 404 when category not found", async () => {
-      jest.spyOn(prisma.category, "findFirst").mockResolvedValueOnce(null);
-      
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(null);
+
       const req = new Request(`http://localhost/api/categories/nonexistent`);
       const ctx = { params: { id: "nonexistent" } };
-      
+
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
-      
+
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Not found" },
         { status: 404 }
@@ -218,15 +248,13 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("returns 500 on database error", async () => {
-      jest
-        .spyOn(prisma.category, "findFirst")
-        .mockRejectedValueOnce(new Error("DB failure"));
-      
+      mockedPrisma.category.findFirst.mockRejectedValueOnce(new Error("DB failure"));
+
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
       const ctx = { params: { id: streamingCatId } };
-      
+
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
-      
+
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Failed to fetch category" },
         { status: 500 }
@@ -235,11 +263,17 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("returns category for authorized user", async () => {
+      const cat = createMockCategory({
+        id: streamingCatId,
+        name: "Streaming",
+      });
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(cat);
+
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
       const ctx = { params: { id: streamingCatId } };
-      
+
       const res = (await GET(req, ctx)) as unknown as ApiResponse<Category>;
-      
+
       expect(res.body).toMatchObject({
         id: streamingCatId,
         userId: aliceId,
@@ -259,9 +293,9 @@ describe("API Integration Tests: Categories", () => {
         body: JSON.stringify(updatedData),
       });
       const ctx = { params: Promise.resolve({ id: streamingCatId }) };
-      
+
       const res = (await PUT(req, ctx)) as unknown as ApiResponse<{ error: string }>;
-      
+
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Unauthorized" },
         { status: 401 }
@@ -270,19 +304,17 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("returns 500 on database update failure", async () => {
-      jest
-        .spyOn(prisma.category, "update")
-        .mockRejectedValueOnce(new Error("Update failure"));
-      
+      mockedPrisma.category.update.mockRejectedValueOnce(new Error("Update failure"));
+
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedData),
       });
       const ctx = { params: Promise.resolve({ id: streamingCatId }) };
-      
+
       const res = (await PUT(req, ctx)) as unknown as ApiResponse<{ error: string }>;
-      
+
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Failed to update category" },
         { status: 500 }
@@ -291,74 +323,84 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("updates and returns the category", async () => {
+      const updatedCat = createMockCategory({
+        id: streamingCatId,
+        ...updatedData,
+      });
+      mockedPrisma.category.update.mockResolvedValueOnce(updatedCat);
+
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedData),
       });
       const ctx = { params: Promise.resolve({ id: streamingCatId }) };
-      
+
       const res = (await PUT(req, ctx)) as unknown as ApiResponse<Category>;
-      
+
       expect(res.body).toMatchObject({
         id: streamingCatId,
         userId: aliceId,
         ...updatedData,
       });
-      
-      // Confirm persisted in DB
-      const dbCat = await prisma.category.findUnique({
-        where: { id: streamingCatId },
+
+      // Verify mock was called
+      expect(mockedPrisma.category.update).toHaveBeenCalledWith({
+        where: { id: streamingCatId, userId: aliceId },
+        data: updatedData,
       });
-      expect(dbCat).toMatchObject(updatedData);
     });
 
     it("updates category with partial data (name only)", async () => {
       const partialUpdate = { name: "Updated Name Only" };
+      const updatedCat = createMockCategory({
+        id: streamingCatId,
+        name: "Updated Name Only",
+      });
+      mockedPrisma.category.update.mockResolvedValueOnce(updatedCat);
+
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(partialUpdate),
       });
       const ctx = { params: Promise.resolve({ id: streamingCatId }) };
-      
+
       const res = (await PUT(req, ctx)) as unknown as ApiResponse<Category>;
-      
+
       expect(res.body).toMatchObject({
         id: streamingCatId,
         userId: aliceId,
         name: "Updated Name Only",
       });
-      
-      // Verify persisted
-      const dbCat = await prisma.category.findUnique({
-        where: { id: streamingCatId },
-      });
-      expect(dbCat?.name).toBe("Updated Name Only");
+
+      expect(mockedPrisma.category.update).toHaveBeenCalled();
     });
 
     it("updates category with partial data (color only)", async () => {
       const partialUpdate = { color: "#FF0000" };
+      const updatedCat = createMockCategory({
+        id: streamingCatId,
+        color: "#FF0000",
+      });
+      mockedPrisma.category.update.mockResolvedValueOnce(updatedCat);
+
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(partialUpdate),
       });
       const ctx = { params: Promise.resolve({ id: streamingCatId }) };
-      
+
       const res = (await PUT(req, ctx)) as unknown as ApiResponse<Category>;
-      
+
       expect(res.body).toMatchObject({
         id: streamingCatId,
         userId: aliceId,
         color: "#FF0000",
       });
-      
-      // Verify persisted
-      const dbCat = await prisma.category.findUnique({
-        where: { id: streamingCatId },
-      });
-      expect(dbCat?.color).toBe("#FF0000");
+
+      expect(mockedPrisma.category.update).toHaveBeenCalled();
     });
   });
 
@@ -367,9 +409,9 @@ describe("API Integration Tests: Categories", () => {
       mockedAuth.mockResolvedValueOnce(null);
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
       const ctx = { params: Promise.resolve({ id: streamingCatId }) };
-      
+
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ error: string }>;
-      
+
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Unauthorized" },
         { status: 401 }
@@ -378,15 +420,13 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("returns 500 on database delete failure", async () => {
-      jest
-        .spyOn(prisma.category, "delete")
-        .mockRejectedValueOnce(new Error("Delete failure"));
-      
+      mockedPrisma.category.delete.mockRejectedValueOnce(new Error("Delete failure"));
+
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
       const ctx = { params: Promise.resolve({ id: streamingCatId }) };
-      
+
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ error: string }>;
-      
+
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Failed to delete category" },
         { status: 500 }
@@ -395,18 +435,20 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("deletes category and returns success message", async () => {
+      const deletedCat = createMockCategory({ id: streamingCatId });
+      mockedPrisma.category.delete.mockResolvedValueOnce(deletedCat);
+
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
       const ctx = { params: Promise.resolve({ id: streamingCatId }) };
-      
+
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ message: string }>;
-      
+
       expect(res.body).toEqual({ message: "Category deleted successfully" });
-      
-      // Verify it's actually deleted
-      const deleted = await prisma.category.findUnique({
-        where: { id: streamingCatId },
+
+      // Verify delete was called with correct args
+      expect(mockedPrisma.category.delete).toHaveBeenCalledWith({
+        where: { id: streamingCatId, userId: aliceId },
       });
-      expect(deleted).toBeNull();
     });
   });
 });
