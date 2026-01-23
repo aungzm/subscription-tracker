@@ -11,8 +11,6 @@ import {
   ResponsiveContainer
 } from "recharts"
 import { ChartContainer } from "@/components/ui/chart"
-import { TooltipProps } from "recharts"
-import { NameType, ValueType } from "recharts/types/component/DefaultTooltipContent"
 
 // Type definitions
 type CategoryMeta = {
@@ -175,12 +173,19 @@ export function YearlyTrend() {
   )
 }
 
-function CustomTooltip({ 
-  active, 
-  payload, 
+type CustomTooltipProps = {
+  active?: boolean
+  payload?: any[]
+  label?: string | number
+  categories: CategoryMeta[]
+}
+
+function CustomTooltip({
+  active,
+  payload,
   label,
-  categories 
-}: TooltipProps<ValueType, NameType> & { categories: CategoryMeta[] }) {
+  categories,
+}: CustomTooltipProps) {
   if (active && payload && payload.length) {
     // Find the total entry in the payload
     const totalPayload = payload.find(entry => entry.dataKey === "total");
