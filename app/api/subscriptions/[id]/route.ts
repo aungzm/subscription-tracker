@@ -47,14 +47,7 @@ export async function GET(request: Request) {
     // Destructure to exclude categoryId and paymentMethodId
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { categoryId, paymentMethodId, ...rest } = subscription;
-    console.log({...rest,
-      category: subscription.category?.name ?? null,
-      paymentMethod: subscription.paymentMethod?.name ?? null,
-      reminders: subscription.reminders.map(reminder => ({
-        date: reminder.reminderDate,
-        providers: reminder.notificationProviders.map(provider => provider.name),
-      })),
-    })
+
     return NextResponse.json({
       ...rest,
       category: subscription.category?.name ?? null,
