@@ -68,7 +68,7 @@ export async function PUT(
       webhookSecret: validatedData.webhookSecret !== undefined ? validatedData.webhookSecret : null,
     };
     const updated = await prisma.notificationProvider.update({
-      where: { id: params.id },
+      where: { id: params.id, userId: session.user.id },
       data,
     });
     return NextResponse.json(updated);
@@ -100,7 +100,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     await prisma.notificationProvider.delete({
-      where: { id: params.id },
+      where: { id: params.id, userId: session.user.id },
     });
     return NextResponse.json({ message: "Notification provider deleted" });
   } catch (error) {

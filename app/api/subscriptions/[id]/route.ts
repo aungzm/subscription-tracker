@@ -101,7 +101,7 @@ export async function PUT(
     }
 
     const updated = await prisma.subscription.update({
-      where: { id },
+      where: { id, userId: session.user.id },
       data: {
         name: validatedData.name ?? existing.name,
         cost: validatedData.cost ?? existing.cost,
@@ -161,7 +161,7 @@ export async function DELETE(
     }
 
     await prisma.subscription.delete({
-      where: { id },
+      where: { id, userId: session.user.id },
     });
 
     return NextResponse.json({ message: "Subscription deleted successfully" });

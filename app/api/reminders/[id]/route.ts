@@ -62,7 +62,7 @@ export async function PUT(
     }
 
     const updatedReminder = await prisma.reminder.update({
-      where: { id: params.id },
+      where: { id: params.id, userId: session.user.id },
       data: {
         reminderDate:
           reminderDate !== undefined
@@ -107,7 +107,7 @@ export async function DELETE(
     }
 
     await prisma.reminder.delete({
-      where: { id: params.id },
+      where: { id: params.id, userId: session.user.id },
     });
 
     return NextResponse.json({ message: "Reminder deleted successfully" });

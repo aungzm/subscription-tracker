@@ -77,7 +77,7 @@ export async function PATCH(
     }
 
     const updatedPaymentMethod = await prisma.paymentMethod.update({
-      where: { id: params.id },
+      where: { id: params.id, userId: session.user.id },
       data: updateData,
     });
 
@@ -115,7 +115,7 @@ export async function DELETE(
     }
 
     await prisma.paymentMethod.delete({
-      where: { id: params.id },
+      where: { id: params.id, userId: session.user.id },
     });
 
     return NextResponse.json({
