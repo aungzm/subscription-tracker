@@ -1,8 +1,37 @@
+import { NextRequest, NextResponse } from "next/server";
 import NextAuth from "next-auth";
-import { authOptions } from "@/lib/auth"; // Adjust the path if your authOptions are elsewhere
+import { authOptions } from "@/lib/auth";
+import { checkRateLimit, getClientIp, AUTH_RATE_LIMIT } from "@/lib/rate-limit";
 
-// Export handlers for GET and POST requests
-// NextAuth handles all requests under /api/auth/* using these handlers
 const handler = NextAuth(authOptions);
 
-export { handler as GET, handler as POST };
+// GET requests don't need rate limiting (callbacks, session checks, etc.)
+export { handler as GET };
+
+// Rate limit POST requests (sign in attempts)
+export async function POST(request: NextRequest) {
+  const url = new URL(request.url);
+
+  // Only rate limit the signin endpoint
+  if (url.pathname.endsWith("/callback/credentials")) {
+    const clientIp = getClientIp(request);
+    const rateLimitResult = checkRateLimit(`auth:${clientIp}`, AUTH_RATE_LIMIT);
+
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: "Too many login attempts. Please try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimitResult.resetIn),
+            "X-RateLimit-Limit": String(rateLimitResult.limit),
+            "X-RateLimit-Remaining": String(rateLimitResult.remaining),
+          },
+        }
+      );
+    }
+  }
+
+  // Pass through to NextAuth handler
+  return handler(request);
+}
