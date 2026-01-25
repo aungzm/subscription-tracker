@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { currencyUpdateSchema, formatZodError } from "@/lib/validations";
 
 // Get user's currency setting
 export async function GET() {
@@ -41,17 +42,20 @@ export async function PUT(request: Request) {
         }
 
         const body = await request.json();
-        
-        if (!body.currency) {
-            return NextResponse.json({ error: "Currency is required" }, { status: 400 });
+
+        const parseResult = currencyUpdateSchema.safeParse(body);
+        if (!parseResult.success) {
+            return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
         }
+
+        const { currency } = parseResult.data;
 
         const updatedUser = await prisma.user.update({
             where: {
                 id: session.user.id,
             },
             data: {
-                currency: body.currency,
+                currency,
             },
             select: {
                 currency: true,

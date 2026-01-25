@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { profileUpdateSchema, formatZodError } from "@/lib/validations";
 
 // Get user details including currency
 export async function GET() {
@@ -45,14 +46,21 @@ export async function PUT(request: Request) {
 
         const body = await request.json();
 
+        const parseResult = profileUpdateSchema.safeParse(body);
+        if (!parseResult.success) {
+            return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
+        }
+
+        const validatedData = parseResult.data;
+
         const updatedUser = await prisma.user.update({
             where: {
                 id: session.user.id,
             },
             data: {
-                name: body.name,
-                image: body.image,
-                currency: body.currency, // Added currency field
+                name: validatedData.name,
+                image: validatedData.image,
+                currency: validatedData.currency,
             },
         });
 

@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-
-function validateProviderFields(body: any) {
-  const hasSmtp =
-    body.smtpServer || body.smtpPort || body.smtpUser || body.smtpPassword;
-  const hasWebhook = body.webhookUrl || body.webhookSecret;
-  if (hasSmtp && hasWebhook) {
-    return "Provide either SMTP or Webhook configuration, not both.";
-  }
-  return null;
-}
+import { notificationProviderUpdateSchema, formatZodError } from "@/lib/validations";
 
 // GET: Get a single Notification Provider by id
 export async function GET(
@@ -51,10 +42,14 @@ export async function PUT(
     }
     const params = await context.params;
     const body = await request.json();
-    const validationError = validateProviderFields(body);
-    if (validationError) {
-      return NextResponse.json({ error: validationError }, { status: 400 });
+
+    const parseResult = notificationProviderUpdateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
     }
+
+    const validatedData = parseResult.data;
+
     // Verify ownership
     const existing = await prisma.notificationProvider.findUnique({
       where: { id: params.id },
@@ -62,16 +57,15 @@ export async function PUT(
     if (!existing || existing.userId !== session.user.id) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
-    const data: any = {
-      name: body.name,
-      type: body.type,
-      subscriptionId: body.subscriptionId,
-      smtpServer: body.smtpServer !== undefined ? body.smtpServer : null,
-      smtpPort: body.smtpPort !== undefined ? body.smtpPort : null,
-      smtpUser: body.smtpUser !== undefined ? body.smtpUser : null,
-      smtpPassword: body.smtpPassword !== undefined ? body.smtpPassword : null,
-      webhookUrl: body.webhookUrl !== undefined ? body.webhookUrl : null,
-      webhookSecret: body.webhookSecret !== undefined ? body.webhookSecret : null,
+    const data = {
+      name: validatedData.name,
+      type: validatedData.type,
+      smtpServer: validatedData.smtpServer !== undefined ? validatedData.smtpServer : null,
+      smtpPort: validatedData.smtpPort !== undefined ? validatedData.smtpPort : null,
+      smtpUser: validatedData.smtpUser !== undefined ? validatedData.smtpUser : null,
+      smtpPassword: validatedData.smtpPassword !== undefined ? validatedData.smtpPassword : null,
+      webhookUrl: validatedData.webhookUrl !== undefined ? validatedData.webhookUrl : null,
+      webhookSecret: validatedData.webhookSecret !== undefined ? validatedData.webhookSecret : null,
     };
     const updated = await prisma.notificationProvider.update({
       where: { id: params.id },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { subscriptionCreateSchema, formatZodError } from "@/lib/validations";
 
 // GET all subscriptions for the logged-in user
 export async function GET() {
@@ -41,12 +42,19 @@ export async function POST(request: Request) {
 
     const body = await request.json();
 
+    const parseResult = subscriptionCreateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
+    }
+
+    const validatedData = parseResult.data;
+
     // Create or find category if provided
     let categoryId = null;
-    if (body.category) {
+    if (validatedData.category) {
       const category = await prisma.category.findFirst({
         where: {
-          name: body.category,
+          name: validatedData.category,
           userId: session.user.id,
         },
       });
@@ -56,7 +64,7 @@ export async function POST(request: Request) {
       } else {
         const newCategory = await prisma.category.create({
           data: {
-            name: body.category,
+            name: validatedData.category,
             userId: session.user.id,
           },
         });
@@ -66,10 +74,10 @@ export async function POST(request: Request) {
 
     // Create or find payment method if provided
     let paymentMethodId = null;
-    if (body.paymentMethod) {
+    if (validatedData.paymentMethod) {
       const paymentMethod = await prisma.paymentMethod.findFirst({
         where: {
-          name: body.paymentMethod,
+          name: validatedData.paymentMethod,
           userId: session.user.id,
         },
       });
@@ -79,8 +87,8 @@ export async function POST(request: Request) {
       } else {
         const newPaymentMethod = await prisma.paymentMethod.create({
           data: {
-            name: body.paymentMethod,
-            type: body.paymentMethod, // You may want to adjust this
+            name: validatedData.paymentMethod,
+            type: "OTHER",
             userId: session.user.id,
           },
         });
@@ -90,16 +98,16 @@ export async function POST(request: Request) {
 
     const subscription = await prisma.subscription.create({
       data: {
-        name: body.name,
-        cost: body.cost,
-        billingFrequency: body.billingFrequency,
-        startDate: new Date(body.startDate),
-        endDate: new Date(body.endDate) || null,
-        notes: body.notes,
+        name: validatedData.name,
+        cost: validatedData.cost,
+        billingFrequency: validatedData.billingFrequency,
+        startDate: new Date(validatedData.startDate),
+        endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
+        notes: validatedData.notes,
         userId: session.user.id,
         categoryId,
         paymentMethodId,
-        currency: body.currency,
+        currency: validatedData.currency,
       },
       include: {
         category: true,

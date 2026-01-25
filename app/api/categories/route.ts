@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { categoryCreateSchema, formatZodError } from "@/lib/validations";
 
 // GET /api/categories - Get all categories for the user
 export async function GET() {
@@ -31,10 +32,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const body = await request.json();
+
+    const parseResult = categoryCreateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
+    }
+
+    const validatedData = parseResult.data;
+
     const category = await prisma.category.create({
       data: {
-        name: body.name,
-        color: body.color || "#0000FF",
+        name: validatedData.name,
+        color: validatedData.color,
         userId: session.user.id,
       },
     });

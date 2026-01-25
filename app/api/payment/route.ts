@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { paymentMethodCreateSchema, formatZodError } from "@/lib/validations";
 
 // GET: List all payment methods for the authenticated user.
 export async function GET() {
@@ -34,13 +35,19 @@ export async function POST(request: Request) {
     }
     const body = await request.json();
 
-    // Expecting at least name and type in the request body.
+    const parseResult = paymentMethodCreateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
+    }
+
+    const validatedData = parseResult.data;
+
     const newPaymentMethod = await prisma.paymentMethod.create({
       data: {
-        name: body.name,
-        type: body.type,
-        lastFour: body.lastFour || null,
-        expiryDate: body.expiryDate ? new Date(body.expiryDate) : null,
+        name: validatedData.name,
+        type: validatedData.type,
+        lastFour: validatedData.lastFour || null,
+        expiryDate: validatedData.expiryDate ? new Date(validatedData.expiryDate) : null,
         userId: session.user.id,
       },
     });

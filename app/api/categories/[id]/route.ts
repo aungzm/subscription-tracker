@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { categoryUpdateSchema, formatZodError } from "@/lib/validations";
 
 // GET /api/categories/:id - Get a specific category
 export async function GET(
@@ -44,14 +45,22 @@ export async function PUT(
     }
     const params = await context.params;
     const body = await request.json();
+
+    const parseResult = categoryUpdateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
+    }
+
+    const validatedData = parseResult.data;
+
     const category = await prisma.category.update({
       where: {
         id: params.id,
         userId: session.user.id,
       },
       data: {
-        name: body.name,
-        color: body.color,
+        name: validatedData.name,
+        color: validatedData.color,
       },
     });
     return NextResponse.json(category);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { subscriptionUpdateSchema, formatZodError } from "@/lib/validations";
 
 // GET a single subscription by id
 export async function GET(
@@ -81,6 +82,13 @@ export async function PUT(
     const id = params.id;
     const body = await request.json();
 
+    const parseResult = subscriptionUpdateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
+    }
+
+    const validatedData = parseResult.data;
+
     // Ensure the subscription belongs to the current user
     const existing = await prisma.subscription.findFirst({
       where: { id, userId: session.user.id },
@@ -95,20 +103,20 @@ export async function PUT(
     const updated = await prisma.subscription.update({
       where: { id },
       data: {
-        name: body.name ?? existing.name,
-        cost: body.cost ?? existing.cost,
-        billingFrequency: body.billingFrequency ?? existing.billingFrequency,
-        startDate: body.startDate
-          ? new Date(body.startDate)
+        name: validatedData.name ?? existing.name,
+        cost: validatedData.cost ?? existing.cost,
+        billingFrequency: validatedData.billingFrequency ?? existing.billingFrequency,
+        startDate: validatedData.startDate
+          ? new Date(validatedData.startDate)
           : existing.startDate,
         endDate:
-          body.endDate === null || body.endDate === undefined
+          validatedData.endDate === null || validatedData.endDate === undefined
             ? null
-            : new Date(body.endDate),
-        notes: body.notes ?? existing.notes,
-        currency: body.currency ?? existing.currency,
-        categoryId: body.category ?? existing.categoryId,
-        paymentMethodId: body.paymentMethod ?? existing.paymentMethodId
+            : new Date(validatedData.endDate),
+        notes: validatedData.notes ?? existing.notes,
+        currency: validatedData.currency ?? existing.currency,
+        categoryId: validatedData.category ?? existing.categoryId,
+        paymentMethodId: validatedData.paymentMethod ?? existing.paymentMethodId
       },
       include: {
         category: true,

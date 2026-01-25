@@ -1,16 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-
-function validateProviderFields(body: any) {
-  const hasSmtp =
-    body.smtpServer || body.smtpPort || body.smtpUser || body.smtpPassword;
-  const hasWebhook = body.webhookUrl || body.webhookSecret;
-  if (hasSmtp && hasWebhook) {
-    return "Provide either SMTP or Webhook configuration, not both.";
-  }
-  return null;
-}
+import { notificationProviderCreateSchema, formatZodError } from "@/lib/validations";
 
 // GET: List all Notification Providers for the current user.
 export async function GET() {
@@ -41,20 +32,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const body = await request.json();
-    const validationError = validateProviderFields(body);
-    if (validationError) {
-      return NextResponse.json({ error: validationError }, { status: 400 });
+
+    const parseResult = notificationProviderCreateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
     }
-    const data: any = {
-      name: body.name,
-      type: body.type,
+
+    const validatedData = parseResult.data;
+
+    const data = {
+      name: validatedData.name,
+      type: validatedData.type,
       userId: session.user.id,
-      smtpServer: body.smtpServer || null,
-      smtpPort: body.smtpPort || null,
-      smtpUser: body.smtpUser || null,
-      smtpPassword: body.smtpPassword || null,
-      webhookUrl: body.webhookUrl || null,
-      webhookSecret: body.webhookSecret || null,
+      smtpServer: validatedData.smtpServer || null,
+      smtpPort: validatedData.smtpPort || null,
+      smtpUser: validatedData.smtpUser || null,
+      smtpPassword: validatedData.smtpPassword || null,
+      webhookUrl: validatedData.webhookUrl || null,
+      webhookSecret: validatedData.webhookSecret || null,
     };
     const provider = await prisma.notificationProvider.create({
       data,

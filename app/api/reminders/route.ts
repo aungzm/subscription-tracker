@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { reminderCreateSchema, formatZodError } from "@/lib/validations";
 
 // GET all reminders for the logged-in user
 export async function GET() {
@@ -35,7 +36,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { subscriptionId, reminderDate, notificationProviderIds, id } = body
+
+    const parseResult = reminderCreateSchema.safeParse(body)
+    if (!parseResult.success) {
+      return NextResponse.json(formatZodError(parseResult.error), { status: 400 })
+    }
+
+    const { subscriptionId, reminderDate, notificationProviderIds, id } = parseResult.data
 
     // Validate the subscription belongs to the current user
     const subscription = await prisma.subscription.findFirst({

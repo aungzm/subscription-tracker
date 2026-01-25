@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { paymentMethodUpdateSchema, formatZodError } from "@/lib/validations";
 
 // GET: Get a single payment method by id
 export async function GET(
@@ -47,7 +48,13 @@ export async function PATCH(
     }
     const params = await context.params;
     const body = await request.json();
-    const { name, type, lastFour, expiryDate } = body;
+
+    const parseResult = paymentMethodUpdateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
+    }
+
+    const validatedData = parseResult.data;
 
     // Ensure the payment method belongs to the current user.
     const paymentMethod = await prisma.paymentMethod.findFirst({
@@ -62,11 +69,11 @@ export async function PATCH(
 
     // Prepare update data only for defined fields.
     const updateData: { [key: string]: any } = {};
-    if (name !== undefined) updateData.name = name;
-    if (type !== undefined) updateData.type = type;
-    if (lastFour !== undefined) updateData.lastFour = lastFour;
-    if (expiryDate !== undefined) {
-      updateData.expiryDate = expiryDate ? new Date(expiryDate) : null;
+    if (validatedData.name !== undefined) updateData.name = validatedData.name;
+    if (validatedData.type !== undefined) updateData.type = validatedData.type;
+    if (validatedData.lastFour !== undefined) updateData.lastFour = validatedData.lastFour;
+    if (validatedData.expiryDate !== undefined) {
+      updateData.expiryDate = validatedData.expiryDate ? new Date(validatedData.expiryDate) : null;
     }
 
     const updatedPaymentMethod = await prisma.paymentMethod.update({

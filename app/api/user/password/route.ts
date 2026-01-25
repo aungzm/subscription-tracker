@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { passwordUpdateSchema, formatZodError } from "@/lib/validations";
 
 // Update user password
 export async function PUT(request: Request) {
@@ -13,20 +14,13 @@ export async function PUT(request: Request) {
         }
 
         const body = await request.json();
-        const { currentPassword, newPassword, repeatPassword } = body;
-        
-        // Validate inputs
-        if (!currentPassword || !newPassword || !repeatPassword) {
-            return NextResponse.json({ error: "All fields are required" }, { status: 400 });
+
+        const parseResult = passwordUpdateSchema.safeParse(body);
+        if (!parseResult.success) {
+            return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
         }
-        
-        if (newPassword.length < 8) {
-            return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
-        }
-        
-        if (newPassword !== repeatPassword) {
-            return NextResponse.json({ error: "New passwords don't match" }, { status: 400 });
-        }
+
+        const { currentPassword, newPassword } = parseResult.data;
 
         // Get user with password
         const user = await prisma.user.findUnique({
