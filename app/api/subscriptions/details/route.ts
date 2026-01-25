@@ -1,10 +1,14 @@
 // api/subscriptions/details/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db"; // Adjust import as needed
+import { prisma } from "@/lib/db";
 import { addDays, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { auth } from "@/lib/auth";
-import { convertCurrency, normalizeToMonthlyCost } from "@/lib/currency";
+import {
+  prefetchExchangeRates,
+  convertCurrencyWithRates,
+  normalizeToMonthlyCostSync,
+} from "@/lib/currency";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -77,7 +81,11 @@ export async function GET(req: NextRequest) {
     )
     .sort((a, b) => a.nextRenewal.getTime() - b.nextRenewal.getTime());
 
-  // Totals with currency conversion
+  // Pre-fetch all exchange rates needed (batch API calls)
+  const uniqueCurrencies = [...new Set(subscriptions.map((s) => s.currency))];
+  const ratesMap = await prefetchExchangeRates(uniqueCurrencies);
+
+  // Totals with currency conversion (now synchronous lookups)
   let totalMonthly = 0;
   let totalYearly = 0;
   let activeSubscriptions = 0;
@@ -86,12 +94,13 @@ export async function GET(req: NextRequest) {
     if (!sub.endDate || new Date(sub.endDate) > today) {
       activeSubscriptions += 1;
 
-      // Convert subscription cost to user's preferred currency
-      const monthlyCostInUserCurrency = await normalizeToMonthlyCost(
+      // Convert subscription cost to user's preferred currency (sync lookup)
+      const monthlyCostInUserCurrency = normalizeToMonthlyCostSync(
         sub.cost,
         sub.currency,
         sub.billingFrequency,
-        userCurrency
+        userCurrency,
+        ratesMap
       );
 
       totalMonthly += monthlyCostInUserCurrency;
@@ -99,41 +108,37 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Convert costs for recent subscriptions
-  const convertedRecentSubscriptions = await Promise.all(
-    recentSubscriptions.map(async (sub) => {
-      const convertedCost = await convertCurrency(sub.cost, sub.currency, userCurrency);
-      return {
-        id: sub.id,
-        name: sub.name,
-        cost: Number(convertedCost.toFixed(2)),
-        currency: userCurrency,
-        originalCost: sub.cost,
-        originalCurrency: sub.currency,
-        billingFrequency: sub.billingFrequency,
-        startDate: sub.startDate,
-        category: sub.category?.name,
-        category_color: sub.category?.color,
-      };
-    })
-  );
+  // Convert costs for recent subscriptions (sync lookups)
+  const convertedRecentSubscriptions = recentSubscriptions.map((sub) => {
+    const convertedCost = convertCurrencyWithRates(sub.cost, sub.currency, userCurrency, ratesMap);
+    return {
+      id: sub.id,
+      name: sub.name,
+      cost: Number(convertedCost.toFixed(2)),
+      currency: userCurrency,
+      originalCost: sub.cost,
+      originalCurrency: sub.currency,
+      billingFrequency: sub.billingFrequency,
+      startDate: sub.startDate,
+      category: sub.category?.name,
+      category_color: sub.category?.color,
+    };
+  });
 
-  // Convert costs for upcoming renewals
-  const convertedUpcomingRenewals = await Promise.all(
-    upcomingRenewals.map(async (sub) => {
-      const convertedCost = await convertCurrency(sub.cost, sub.currency, userCurrency);
-      return {
-        id: sub.id,
-        name: sub.name,
-        nextRenewal: sub.nextRenewal,
-        cost: Number(convertedCost.toFixed(2)),
-        currency: userCurrency,
-        originalCost: sub.cost,
-        originalCurrency: sub.currency,
-        billingFrequency: sub.billingFrequency,
-      };
-    })
-  );
+  // Convert costs for upcoming renewals (sync lookups)
+  const convertedUpcomingRenewals = upcomingRenewals.map((sub) => {
+    const convertedCost = convertCurrencyWithRates(sub.cost, sub.currency, userCurrency, ratesMap);
+    return {
+      id: sub.id,
+      name: sub.name,
+      nextRenewal: sub.nextRenewal,
+      cost: Number(convertedCost.toFixed(2)),
+      currency: userCurrency,
+      originalCost: sub.cost,
+      originalCurrency: sub.currency,
+      billingFrequency: sub.billingFrequency,
+    };
+  });
 
   return NextResponse.json({
     totals: {

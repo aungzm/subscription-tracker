@@ -199,3 +199,106 @@ export async function normalizeToMonthlyCost(
 export function clearRatesCache(): void {
   ratesCache.clear();
 }
+
+/**
+ * Pre-fetch exchange rates for multiple source currencies
+ * This batches the API calls to avoid N+1 queries
+ * @param sourceCurrencies - Array of source currency codes
+ * @returns Map of source currency to their exchange rates
+ */
+export async function prefetchExchangeRates(
+  sourceCurrencies: string[]
+): Promise<Map<string, ExchangeRates>> {
+  const uniqueCurrencies = [...new Set(sourceCurrencies.map(c => c.toLowerCase()))];
+
+  const results = await Promise.all(
+    uniqueCurrencies.map(async (currency) => {
+      try {
+        const rates = await fetchExchangeRates(currency);
+        return [currency, rates] as const;
+      } catch (error) {
+        console.error(`Failed to fetch rates for ${currency}:`, error);
+        return [currency, null] as const;
+      }
+    })
+  );
+
+  const ratesMap = new Map<string, ExchangeRates>();
+  for (const [currency, rates] of results) {
+    if (rates) {
+      ratesMap.set(currency, rates);
+    }
+  }
+
+  return ratesMap;
+}
+
+/**
+ * Convert currency using pre-fetched rates (synchronous lookup)
+ * @param amount - The amount to convert
+ * @param fromCurrency - Source currency code
+ * @param toCurrency - Target currency code
+ * @param ratesMap - Pre-fetched exchange rates map
+ * @returns Converted amount
+ */
+export function convertCurrencyWithRates(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+  ratesMap: Map<string, ExchangeRates>
+): number {
+  const from = fromCurrency.toLowerCase();
+  const to = toCurrency.toLowerCase();
+
+  if (from === to) {
+    return amount;
+  }
+
+  const rates = ratesMap.get(from);
+  if (!rates) {
+    console.error(`No rates found for ${fromCurrency}`);
+    return amount;
+  }
+
+  const targetRate = rates[to];
+  if (typeof targetRate !== 'number') {
+    console.error(`Exchange rate not found for ${fromCurrency} to ${toCurrency}`);
+    return amount;
+  }
+
+  return amount * targetRate;
+}
+
+/**
+ * Normalize cost to monthly equivalent using pre-fetched rates (synchronous)
+ * @param cost - Subscription cost
+ * @param currency - Original currency
+ * @param billingFrequency - Billing frequency
+ * @param targetCurrency - Target currency
+ * @param ratesMap - Pre-fetched exchange rates map
+ * @returns Monthly equivalent cost in target currency
+ */
+export function normalizeToMonthlyCostSync(
+  cost: number,
+  currency: string,
+  billingFrequency: string,
+  targetCurrency: string,
+  ratesMap: Map<string, ExchangeRates>
+): number {
+  const convertedCost = convertCurrencyWithRates(cost, currency, targetCurrency, ratesMap);
+
+  switch (billingFrequency.toLowerCase()) {
+    case 'monthly':
+      return convertedCost;
+    case 'yearly':
+      return convertedCost / 12;
+    case 'weekly':
+      return (convertedCost * 52) / 12;
+    case 'daily':
+      return (convertedCost * 365) / 12;
+    case 'quarterly':
+      return convertedCost / 3;
+    default:
+      return convertedCost;
+  }
+}
