@@ -48,7 +48,7 @@ A simple and effective tool to help you manage your app subscriptions. Track rec
 1. Clone the repository:
 
    ```bash
-   git clone https://your-repo-url.git
+   git clone https://github.com/aungzm/subscription-tracker.git
    cd your-repo
    ```
 
