@@ -149,6 +149,22 @@ export const notificationProviderCreateSchema = z
 
 export const notificationProviderUpdateSchema = notificationProviderCreateSchema;
 
+// Notification test/send schema (for sending test notifications)
+export const sendNotificationSchema = z.object({
+  name: z.string().min(1),
+  type: z.enum(["EMAIL", "PUSH"]),
+  smtpServer: z.string().optional().nullable(),
+  smtpPort: z.number().optional().nullable(),
+  smtpUser: z.string().optional().nullable(),
+  smtpPassword: z.string().optional().nullable(),
+  webhookUrl: z.string().url().optional().nullable(),
+  webhookSecret: z.string().optional().nullable(),
+  message: z.object({
+    subject: z.string().min(1),
+    body: z.string().min(1),
+  }),
+});
+
 // Type exports
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type PasswordUpdateInput = z.infer<typeof passwordUpdateSchema>;
@@ -162,3 +178,4 @@ export type PaymentMethodCreateInput = z.infer<typeof paymentMethodCreateSchema>
 export type PaymentMethodUpdateInput = z.infer<typeof paymentMethodUpdateSchema>;
 export type ReminderCreateInput = z.infer<typeof reminderCreateSchema>;
 export type NotificationProviderInput = z.infer<typeof notificationProviderCreateSchema>;
+export type SendNotificationInput = z.infer<typeof sendNotificationSchema>;

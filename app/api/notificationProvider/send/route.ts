@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { providerSchema, sendEmail, sendWebhook } from "@/lib/notification";
+import { sendEmail, sendWebhook } from "@/lib/notification";
+import { sendNotificationSchema, formatZodError } from "@/lib/validations";
 
 export async function POST(request: Request) {
   try {
@@ -10,16 +11,10 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const parseResult = providerSchema.safeParse(body);
+    const parseResult = sendNotificationSchema.safeParse(body);
 
     if (!parseResult.success) {
-      return NextResponse.json(
-        {
-          message: "Invalid provider data",
-          errors: parseResult.error.flatten(),
-        },
-        { status: 400 }
-      );
+      return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
     }
 
     const provider = parseResult.data;

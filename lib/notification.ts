@@ -1,23 +1,6 @@
-import { z } from "zod";
+import { SendNotificationInput } from "@/lib/validations";
 
-export const providerSchema = z.object({
-  name: z.string().min(1),
-  type: z.enum(["EMAIL", "PUSH"]),
-  smtpServer: z.string().optional().nullable(),
-  smtpPort: z.number().optional().nullable(),
-  smtpUser: z.string().optional().nullable(),
-  smtpPassword: z.string().optional().nullable(),
-  webhookUrl: z.string().url().optional().nullable(),
-  webhookSecret: z.string().optional().nullable(),
-  message: z.object({
-    subject: z.string().min(1),
-    body: z.string().min(1),
-  }),
-});
-
-export type ProviderData = z.infer<typeof providerSchema>;
-
-export async function sendEmail(provider: ProviderData) {
+export async function sendEmail(provider: SendNotificationInput) {
   if (
     !provider.smtpServer ||
     !provider.smtpPort ||
@@ -29,7 +12,7 @@ export async function sendEmail(provider: ProviderData) {
   return true;
 }
 
-export async function sendWebhook(provider: ProviderData) {
+export async function sendWebhook(provider: SendNotificationInput) {
   if (!provider.webhookUrl) {
     throw new Error("Missing webhook URL for PUSH notification");
   }
