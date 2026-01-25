@@ -3,18 +3,18 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 // GET a single subscription by id
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     const session = await auth();
     if (!session || !session.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get ID from the URL path directly
-    const id = request.url.split("/").pop();
-    if (!id) {
-      return NextResponse.json({ error: "No ID provided" }, { status: 400 });
-    }
+    const params = await context.params;
+    const id = params.id;
 
     const subscription = await prisma.subscription.findFirst({
       where: { id, userId: session.user.id },
