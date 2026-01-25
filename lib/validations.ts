@@ -94,7 +94,7 @@ const paymentMethodTypes = [
 
 export const paymentMethodCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  type: z.enum(paymentMethodTypes, { errorMap: () => ({ message: "Invalid payment method type" }) }),
+  type: z.enum(paymentMethodTypes, { message: "Invalid payment method type" }),
   lastFour: z
     .string()
     .length(4, "Last four must be exactly 4 digits")
