@@ -69,12 +69,20 @@ async function fetchExchangeRates(baseCurrency: string): Promise<ExchangeRates> 
   );
 }
 
+/** Result type for currency conversion operations */
+export interface ConversionResult {
+  success: boolean;
+  amount: number;
+  error?: string;
+}
+
 /**
  * Convert an amount from one currency to another
  * @param amount - The amount to convert
  * @param fromCurrency - Source currency code (e.g., 'USD')
  * @param toCurrency - Target currency code (e.g., 'CAD')
  * @returns Converted amount
+ * @throws Error if conversion fails
  */
 export async function convertCurrency(
   amount: number,
@@ -86,20 +94,36 @@ export async function convertCurrency(
     return amount;
   }
 
+  // Fetch exchange rates with the source currency as base
+  const rates = await fetchExchangeRates(fromCurrency);
+  const targetRate = rates[toCurrency.toLowerCase()];
+
+  if (typeof targetRate !== 'number') {
+    throw new Error(`Exchange rate not found for ${fromCurrency} to ${toCurrency}`);
+  }
+
+  return amount * targetRate;
+}
+
+/**
+ * Safely convert currency, returning a result object instead of throwing
+ * @param amount - The amount to convert
+ * @param fromCurrency - Source currency code
+ * @param toCurrency - Target currency code
+ * @returns ConversionResult with success status and converted/original amount
+ */
+export async function convertCurrencySafe(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string
+): Promise<ConversionResult> {
   try {
-    // Fetch exchange rates with the source currency as base
-    const rates = await fetchExchangeRates(fromCurrency);
-    const targetRate = rates[toCurrency.toLowerCase()];
-
-    if (typeof targetRate !== 'number') {
-      throw new Error(`Exchange rate not found for ${fromCurrency} to ${toCurrency}`);
-    }
-
-    return amount * targetRate;
+    const converted = await convertCurrency(amount, fromCurrency, toCurrency);
+    return { success: true, amount: converted };
   } catch (error) {
-    console.error('Currency conversion error:', error);
-    // Return original amount if conversion fails
-    return amount;
+    const message = error instanceof Error ? error.message : 'Unknown conversion error';
+    console.error('Currency conversion error:', message);
+    return { success: false, amount, error: message };
   }
 }
 
@@ -240,6 +264,7 @@ export async function prefetchExchangeRates(
  * @param toCurrency - Target currency code
  * @param ratesMap - Pre-fetched exchange rates map
  * @returns Converted amount
+ * @throws Error if rates not found
  */
 export function convertCurrencyWithRates(
   amount: number,
@@ -256,17 +281,39 @@ export function convertCurrencyWithRates(
 
   const rates = ratesMap.get(from);
   if (!rates) {
-    console.error(`No rates found for ${fromCurrency}`);
-    return amount;
+    throw new Error(`No exchange rates found for ${fromCurrency}`);
   }
 
   const targetRate = rates[to];
   if (typeof targetRate !== 'number') {
-    console.error(`Exchange rate not found for ${fromCurrency} to ${toCurrency}`);
-    return amount;
+    throw new Error(`Exchange rate not found for ${fromCurrency} to ${toCurrency}`);
   }
 
   return amount * targetRate;
+}
+
+/**
+ * Safely convert currency using pre-fetched rates
+ * @param amount - The amount to convert
+ * @param fromCurrency - Source currency code
+ * @param toCurrency - Target currency code
+ * @param ratesMap - Pre-fetched exchange rates map
+ * @returns ConversionResult with success status
+ */
+export function convertCurrencyWithRatesSafe(
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+  ratesMap: Map<string, ExchangeRates>
+): ConversionResult {
+  try {
+    const converted = convertCurrencyWithRates(amount, fromCurrency, toCurrency, ratesMap);
+    return { success: true, amount: converted };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown conversion error';
+    console.error('Currency conversion error:', message);
+    return { success: false, amount, error: message };
+  }
 }
 
 /**
@@ -300,5 +347,39 @@ export function normalizeToMonthlyCostSync(
       return convertedCost / 3;
     default:
       return convertedCost;
+  }
+}
+
+/**
+ * Safely normalize cost to monthly equivalent using pre-fetched rates
+ * @param cost - Subscription cost
+ * @param currency - Original currency
+ * @param billingFrequency - Billing frequency
+ * @param targetCurrency - Target currency
+ * @param ratesMap - Pre-fetched exchange rates map
+ * @returns ConversionResult with monthly equivalent cost
+ */
+export function normalizeToMonthlyCostSyncSafe(
+  cost: number,
+  currency: string,
+  billingFrequency: string,
+  targetCurrency: string,
+  ratesMap: Map<string, ExchangeRates>
+): ConversionResult {
+  try {
+    const monthlyAmount = normalizeToMonthlyCostSync(cost, currency, billingFrequency, targetCurrency, ratesMap);
+    return { success: true, amount: monthlyAmount };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown conversion error';
+    console.error('Currency normalization error:', message);
+    // Return unconverted monthly equivalent as fallback
+    let fallbackAmount = cost;
+    switch (billingFrequency.toLowerCase()) {
+      case 'yearly': fallbackAmount = cost / 12; break;
+      case 'weekly': fallbackAmount = (cost * 52) / 12; break;
+      case 'daily': fallbackAmount = (cost * 365) / 12; break;
+      case 'quarterly': fallbackAmount = cost / 3; break;
+    }
+    return { success: false, amount: fallbackAmount, error: message };
   }
 }

@@ -6,8 +6,8 @@ import { addDays, isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { auth } from "@/lib/auth";
 import {
   prefetchExchangeRates,
-  convertCurrencyWithRates,
-  normalizeToMonthlyCostSync,
+  convertCurrencyWithRatesSafe,
+  normalizeToMonthlyCostSyncSafe,
 } from "@/lib/currency";
 
 export async function GET(req: NextRequest) {
@@ -85,6 +85,9 @@ export async function GET(req: NextRequest) {
   const uniqueCurrencies = [...new Set(subscriptions.map((s) => s.currency))];
   const ratesMap = await prefetchExchangeRates(uniqueCurrencies);
 
+  // Track conversion failures
+  const conversionErrors: string[] = [];
+
   // Totals with currency conversion (now synchronous lookups)
   let totalMonthly = 0;
   let totalYearly = 0;
@@ -95,7 +98,7 @@ export async function GET(req: NextRequest) {
       activeSubscriptions += 1;
 
       // Convert subscription cost to user's preferred currency (sync lookup)
-      const monthlyCostInUserCurrency = normalizeToMonthlyCostSync(
+      const result = normalizeToMonthlyCostSyncSafe(
         sub.cost,
         sub.currency,
         sub.billingFrequency,
@@ -103,42 +106,57 @@ export async function GET(req: NextRequest) {
         ratesMap
       );
 
-      totalMonthly += monthlyCostInUserCurrency;
-      totalYearly += monthlyCostInUserCurrency * 12;
+      if (!result.success && result.error) {
+        conversionErrors.push(`${sub.name}: ${result.error}`);
+      }
+
+      totalMonthly += result.amount;
+      totalYearly += result.amount * 12;
     }
   }
 
   // Convert costs for recent subscriptions (sync lookups)
   const convertedRecentSubscriptions = recentSubscriptions.map((sub) => {
-    const convertedCost = convertCurrencyWithRates(sub.cost, sub.currency, userCurrency, ratesMap);
+    const result = convertCurrencyWithRatesSafe(sub.cost, sub.currency, userCurrency, ratesMap);
+    if (!result.success && result.error) {
+      conversionErrors.push(`${sub.name}: ${result.error}`);
+    }
     return {
       id: sub.id,
       name: sub.name,
-      cost: Number(convertedCost.toFixed(2)),
-      currency: userCurrency,
+      cost: Number(result.amount.toFixed(2)),
+      currency: result.success ? userCurrency : sub.currency,
       originalCost: sub.cost,
       originalCurrency: sub.currency,
       billingFrequency: sub.billingFrequency,
       startDate: sub.startDate,
       category: sub.category?.name,
       category_color: sub.category?.color,
+      conversionFailed: !result.success,
     };
   });
 
   // Convert costs for upcoming renewals (sync lookups)
   const convertedUpcomingRenewals = upcomingRenewals.map((sub) => {
-    const convertedCost = convertCurrencyWithRates(sub.cost, sub.currency, userCurrency, ratesMap);
+    const result = convertCurrencyWithRatesSafe(sub.cost, sub.currency, userCurrency, ratesMap);
+    if (!result.success && result.error) {
+      conversionErrors.push(`${sub.name}: ${result.error}`);
+    }
     return {
       id: sub.id,
       name: sub.name,
       nextRenewal: sub.nextRenewal,
-      cost: Number(convertedCost.toFixed(2)),
-      currency: userCurrency,
+      cost: Number(result.amount.toFixed(2)),
+      currency: result.success ? userCurrency : sub.currency,
       originalCost: sub.cost,
       originalCurrency: sub.currency,
       billingFrequency: sub.billingFrequency,
+      conversionFailed: !result.success,
     };
   });
+
+  // Deduplicate conversion errors
+  const uniqueErrors = [...new Set(conversionErrors)];
 
   return NextResponse.json({
     totals: {
@@ -150,5 +168,11 @@ export async function GET(req: NextRequest) {
     },
     recentSubscriptions: convertedRecentSubscriptions,
     upcomingRenewals: convertedUpcomingRenewals,
+    ...(uniqueErrors.length > 0 && {
+      warnings: {
+        conversionErrors: uniqueErrors,
+        message: "Some currency conversions failed. Amounts shown in original currency.",
+      },
+    }),
   });
 }
