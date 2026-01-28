@@ -68,8 +68,9 @@ export function NotificationSettings() {
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const form = useForm<z.infer<typeof providerSchema>>({
-    resolver: zodResolver(providerSchema),
+  const form = useForm<Provider>({
+    // zodResolver type inference doesn't handle preprocess well, cast needed
+    resolver: zodResolver(providerSchema) as unknown as import("react-hook-form").Resolver<Provider>,
     defaultValues: {
       name: "",
       type: "EMAIL",
