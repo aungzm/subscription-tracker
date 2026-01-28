@@ -73,7 +73,7 @@ export async function POST(request: Request) {
           // Clear existing notification providers and set new ones
           notificationProviders: {
             disconnect: { id: '*' }, // Disconnect all existing
-            connect: notificationProviderIds.map((id: any) => ({ id })),
+            connect: notificationProviderIds.map((id: string) => ({ id })),
           },
         },
       })
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
           userId: session.user.id,
           subscriptionId,
           notificationProviders: {
-            connect: notificationProviderIds.map((id: any) => ({ id })),
+            connect: notificationProviderIds.map((id: string) => ({ id })),
           },
         },
       })

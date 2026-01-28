@@ -69,7 +69,7 @@ export function NotificationSettings() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const form = useForm<z.infer<typeof providerSchema>>({
-    resolver: zodResolver(providerSchema) as any,
+    resolver: zodResolver(providerSchema),
     defaultValues: {
       name: "",
       type: "EMAIL",
@@ -124,12 +124,10 @@ export function NotificationSettings() {
           method = "PUT";
         }
 
-        const payload = { ...values };
+        const payload: Record<string, string | number | null | undefined> = { ...values };
         Object.keys(payload).forEach((key) => {
-          const typedKey = key as keyof Provider;
-          if (payload[typedKey] === "") {
-            // Use type assertion to safely set null
-            (payload as any)[typedKey] = null;
+          if (payload[key] === "") {
+            payload[key] = null;
           }
         });
 
@@ -160,11 +158,11 @@ export function NotificationSettings() {
         fetchProviders();
         resetForm();
         setIsDialogOpen(false);
-      } catch (error: any) {
+      } catch (error) {
         console.error("Submit Error:", error);
         toast({
           title: "Error Saving Provider",
-          description: error.message || "Something went wrong. Please try again.",
+          description: error instanceof Error ? error.message : "Something went wrong. Please try again.",
           variant: "destructive",
         });
       }
@@ -198,10 +196,10 @@ export function NotificationSettings() {
         title: "Test Successful",
         description: "Provider test succeeded.",
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Test Failed",
-        description: error.message || "Could not test the provider.",
+        description: error instanceof Error ? error.message : "Could not test the provider.",
         variant: "destructive",
       });
     }
