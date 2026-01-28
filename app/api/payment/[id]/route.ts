@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { paymentMethodUpdateSchema, formatZodError } from "@/lib/validations";
+import type { Prisma } from "@prisma/client";
 
 // GET: Get a single payment method by id
 export async function GET(
@@ -68,7 +69,7 @@ export async function PATCH(
     }
 
     // Prepare update data only for defined fields.
-    const updateData: { [key: string]: any } = {};
+    const updateData: Prisma.PaymentMethodUpdateInput = {};
     if (validatedData.name !== undefined) updateData.name = validatedData.name;
     if (validatedData.type !== undefined) updateData.type = validatedData.type;
     if (validatedData.lastFour !== undefined) updateData.lastFour = validatedData.lastFour;
