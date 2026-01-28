@@ -18,6 +18,15 @@ export type ChartConfig = {
   )
 }
 
+type ChartPayloadItem = {
+  dataKey?: string
+  name?: string
+  value?: number | string
+  color?: string
+  fill?: string
+  payload?: Record<string, unknown>
+}
+
 type ChartContextProps = {
   config: ChartConfig
 }
@@ -111,7 +120,7 @@ const ChartTooltipContent = React.forwardRef<
       indicator?: "line" | "dot" | "dashed"
       nameKey?: string
       labelKey?: string
-      payload?: any[]
+      payload?: ChartPayloadItem[]
       active?: boolean
       label?: string | number
     }
@@ -266,7 +275,7 @@ const ChartLegendContent = React.forwardRef<
   React.ComponentProps<"div"> & {
       hideIcon?: boolean
       nameKey?: string
-      payload?: any[]
+      payload?: ChartPayloadItem[]
       verticalAlign?: "top" | "bottom" | "middle"
     }
 >(
