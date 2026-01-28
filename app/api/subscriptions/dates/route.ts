@@ -5,6 +5,17 @@ import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { addMonths, addYears, addDays, isSameMonth, isSameYear, format } from "date-fns";
 
+type SubscriptionWithCategory = {
+  id: string;
+  name: string;
+  cost: number;
+  currency: string;
+  billingFrequency: string;
+  startDate: Date;
+  endDate: Date | null;
+  category: { name: string; color: string } | null;
+};
+
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session || !session.user) {
@@ -27,7 +38,7 @@ export async function GET(req: NextRequest) {
   });
 
   // For each subscription, generate renewal dates for the requested month/year
-  function getDates(sub: any) {
+  function getDates(sub: SubscriptionWithCategory) {
     const { billingFrequency, startDate, endDate } = sub;
     const start = new Date(startDate);
     let dates: string[] = [];
@@ -75,14 +86,7 @@ export async function GET(req: NextRequest) {
     return dates;
   }
 
-  const result = subscriptions.map((sub: { 
-    id: any; 
-    name: any; 
-    billingFrequency: any; 
-    cost: any; 
-    currency: any; 
-    category: { name: any; color: any; } | null; 
-  }) => ({
+  const result = subscriptions.map((sub: SubscriptionWithCategory) => ({
     id: sub.id,
     name: sub.name,
     billingFrequency: sub.billingFrequency,

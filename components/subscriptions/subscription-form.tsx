@@ -277,7 +277,7 @@ export function SubscriptionForm({
             name: data.name,
             cost: data.cost,
             currency: data.currency,
-            billingFrequency: data.billingFrequency as any,
+            billingFrequency: data.billingFrequency as "monthly" | "yearly" | "weekly" | "custom",
             startDate: new Date(data.startDate),
             endDate: data.endDate ? new Date(data.endDate) : null,
             paymentMethod: findIdByName(paymentMethods, data.paymentMethod),

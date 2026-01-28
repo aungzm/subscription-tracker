@@ -10,6 +10,26 @@ import {
   normalizeToMonthlyCostSyncSafe,
 } from "@/lib/currency";
 
+type SubscriptionWithRelations = {
+  id: string;
+  name: string;
+  cost: number;
+  currency: string;
+  billingFrequency: string;
+  startDate: Date;
+  endDate: Date | null;
+  notes: string | null;
+  isShared: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  userId: string;
+  categoryId: string | null;
+  paymentMethodId: string | null;
+  category: { id: string; name: string; color: string } | null;
+  paymentMethod: { id: string; name: string } | null;
+  reminders: { id: string; reminderDate: Date }[];
+};
+
 export async function GET(req: NextRequest) {
   const session = await auth();
 
@@ -49,7 +69,7 @@ export async function GET(req: NextRequest) {
   const weekFromNow = endOfDay(addDays(today, 7));
 
   // Helper to get next renewal date
-  function getNextRenewalDate(sub: any) {
+  function getNextRenewalDate(sub: SubscriptionWithRelations) {
     const { billingFrequency, startDate } = sub;
     const now = new Date();
     let nextDate = new Date(startDate);
