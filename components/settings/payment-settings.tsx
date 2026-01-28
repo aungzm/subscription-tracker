@@ -19,6 +19,13 @@ type PaymentMethod = {
     expiryDate: Date | null
 }
 
+type PaymentFormValues = {
+    name: string
+    type: string
+    lastFour: string
+    expiryDate: string
+}
+
 const paymentTypes: Record<string, string> = {
     CREDIT_CARD: "Credit Card",
     DEBIT_CARD: "Debit Card",
@@ -90,7 +97,7 @@ export function PaymentSettings() {
         }
     }
 
-    async function onSubmit(values: any) {
+    async function onSubmit(values: PaymentFormValues) {
         try {
             setIsLoading(true)
 
