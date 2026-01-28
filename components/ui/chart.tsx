@@ -18,14 +18,10 @@ export type ChartConfig = {
   )
 }
 
-type ChartPayloadItem = {
-  dataKey?: string
-  name?: string
-  value?: number | string
-  color?: string
-  fill?: string
-  payload?: Record<string, unknown>
-}
+// Recharts payload types are complex and version-dependent.
+// Using a loose type here for compatibility with Recharts internals.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RechartsPayload = any[]
 
 type ChartContextProps = {
   config: ChartConfig
@@ -120,7 +116,7 @@ const ChartTooltipContent = React.forwardRef<
       indicator?: "line" | "dot" | "dashed"
       nameKey?: string
       labelKey?: string
-      payload?: ChartPayloadItem[]
+      payload?: RechartsPayload
       active?: boolean
       label?: string | number
     }
@@ -275,7 +271,7 @@ const ChartLegendContent = React.forwardRef<
   React.ComponentProps<"div"> & {
       hideIcon?: boolean
       nameKey?: string
-      payload?: ChartPayloadItem[]
+      payload?: RechartsPayload
       verticalAlign?: "top" | "bottom" | "middle"
     }
 >(
