@@ -3,6 +3,8 @@ import { MonthlyTrend } from "@/components/analytics/monthly-trend"
 import { YearlyTrend } from "@/components/analytics/yearly-trend"
 import { cookies, headers } from "next/headers"
 
+export const dynamic = "force-dynamic"
+
 // Type definitions
 type LargestExpense = {
   id: string
@@ -62,16 +64,13 @@ type YearlyTrendData = {
 async function getAnalyticsData(): Promise<AnalyticsData> {
   const cookieStore = await cookies()
   const cookie = cookieStore.toString()
-
   const host = (await headers()).get("host")
   const protocol = process.env.NODE_ENV === "development" ? "http" : "https"
-  const url = `${protocol}://${host}/api/analytics/details`
 
-  const res = await fetch(url, {
+  const res = await fetch(`${protocol}://${host}/api/analytics/details`, {
     headers: { cookie },
     next: { revalidate: 180, tags: ["analytics"] },
   })
-
   if (!res.ok) throw new Error("Failed to fetch analytics data")
   return res.json()
 }
@@ -79,17 +78,14 @@ async function getAnalyticsData(): Promise<AnalyticsData> {
 async function getMonthlyTrendData(): Promise<MonthlyTrendData> {
   const cookieStore = await cookies()
   const cookie = cookieStore.toString()
-
   const host = (await headers()).get("host")
   const protocol = process.env.NODE_ENV === "development" ? "http" : "https"
   const currentYear = new Date().getFullYear()
-  const url = `${protocol}://${host}/api/analytics/monthly?year=${currentYear}`
 
-  const res = await fetch(url, {
+  const res = await fetch(`${protocol}://${host}/api/analytics/monthly?year=${currentYear}`, {
     headers: { cookie },
     next: { revalidate: 180, tags: ["analytics"] },
   })
-
   if (!res.ok) throw new Error("Failed to fetch monthly trend data")
   return res.json()
 }
@@ -97,16 +93,13 @@ async function getMonthlyTrendData(): Promise<MonthlyTrendData> {
 async function getYearlyTrendData(): Promise<YearlyTrendData> {
   const cookieStore = await cookies()
   const cookie = cookieStore.toString()
-
   const host = (await headers()).get("host")
   const protocol = process.env.NODE_ENV === "development" ? "http" : "https"
-  const url = `${protocol}://${host}/api/analytics/yearly`
 
-  const res = await fetch(url, {
+  const res = await fetch(`${protocol}://${host}/api/analytics/yearly`, {
     headers: { cookie },
     next: { revalidate: 180, tags: ["analytics"] },
   })
-
   if (!res.ok) throw new Error("Failed to fetch yearly trend data")
   return res.json()
 }

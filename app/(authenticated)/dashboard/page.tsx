@@ -6,6 +6,8 @@ import { UpcomingRenewals } from "@/components/dashboard/upcoming-renewals";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 import { cookies, headers } from "next/headers";
 
+export const dynamic = "force-dynamic";
+
 // Types
 interface RecentSubscription {
   id: string;
@@ -45,9 +47,7 @@ async function getDashboardData(): Promise<DashboardData> {
   const url = `${protocol}://${host}/api/subscriptions/details`;
 
   const res = await fetch(url, {
-    headers: {
-      cookie,
-    },
+    headers: { cookie },
     next: { revalidate: 180, tags: ["dashboard"] },
   });
   if (!res.ok) throw new Error("Failed to fetch dashboard data");
