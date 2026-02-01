@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { subscriptionUpdateSchema, formatZodError } from "@/lib/validations";
@@ -124,6 +125,7 @@ export async function PUT(
       },
     });
 
+    revalidateTag("dashboard");
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Error updating subscription:", error);
@@ -164,6 +166,7 @@ export async function DELETE(
       where: { id, userId: session.user.id },
     });
 
+    revalidateTag("dashboard");
     return NextResponse.json({ message: "Subscription deleted successfully" });
   } catch (error) {
     console.error("Error deleting subscription:", error);

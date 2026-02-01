@@ -48,7 +48,7 @@ async function getDashboardData(): Promise<DashboardData> {
     headers: {
       cookie,
     },
-    next: { revalidate: 60 },
+    next: { revalidate: 180, tags: ["dashboard"] },
   });
   if (!res.ok) throw new Error("Failed to fetch dashboard data");
   return res.json();

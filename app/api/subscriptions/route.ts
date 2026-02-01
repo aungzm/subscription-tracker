@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { subscriptionCreateSchema, formatZodError } from "@/lib/validations";
@@ -115,6 +116,7 @@ export async function POST(request: Request) {
       },
     });
 
+    revalidateTag("dashboard");
     return NextResponse.json(subscription);
   } catch (error) {
     console.error("Error creating subscription:", error);
