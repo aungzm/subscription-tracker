@@ -117,6 +117,7 @@ export async function POST(request: Request) {
     });
 
     revalidateTag("dashboard");
+    revalidateTag("analytics");
     return NextResponse.json(subscription);
   } catch (error) {
     console.error("Error creating subscription:", error);

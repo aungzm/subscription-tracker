@@ -126,6 +126,7 @@ export async function PUT(
     });
 
     revalidateTag("dashboard");
+    revalidateTag("analytics");
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Error updating subscription:", error);
@@ -167,6 +168,7 @@ export async function DELETE(
     });
 
     revalidateTag("dashboard");
+    revalidateTag("analytics");
     return NextResponse.json({ message: "Subscription deleted successfully" });
   } catch (error) {
     console.error("Error deleting subscription:", error);
