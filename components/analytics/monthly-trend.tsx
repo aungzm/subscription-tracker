@@ -38,16 +38,26 @@ type ApiResponse = {
   categories: CategoryMeta[];
 };
 
-export function MonthlyTrend() {
+type MonthlyTrendProps = {
+  initialData?: ApiResponse;
+};
+
+export function MonthlyTrend({ initialData }: MonthlyTrendProps) {
   const currentYear = new Date().getFullYear();
 
   const [selectedYear, setSelectedYear] = React.useState(
     currentYear.toString()
   );
-  const [chartData, setChartData] = React.useState<MonthlyDataPoint[]>([]);
-  const [categories, setCategories] = React.useState<CategoryMeta[]>([]);
-  const [availableYears, setAvailableYears] = React.useState<number[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [chartData, setChartData] = React.useState<MonthlyDataPoint[]>(
+    initialData?.monthlyData ?? []
+  );
+  const [categories, setCategories] = React.useState<CategoryMeta[]>(
+    initialData?.categories ?? []
+  );
+  const [availableYears, setAvailableYears] = React.useState<number[]>(
+    initialData?.years ?? []
+  );
+  const [loading, setLoading] = React.useState(!initialData);
   const [error, setError] = React.useState<string | null>(null);
 
   const chartConfig = React.useMemo(() => {
@@ -58,7 +68,17 @@ export function MonthlyTrend() {
     return config;
   }, [categories]);
 
+  // Track if this is the initial render with initialData
+  const isInitialRender = React.useRef(!!initialData);
+
   React.useEffect(() => {
+    // Skip fetch on initial render if we have initialData for current year
+    if (isInitialRender.current && selectedYear === currentYear.toString()) {
+      isInitialRender.current = false;
+      return;
+    }
+    isInitialRender.current = false;
+
     const fetchData = async () => {
       setLoading(true);
       setError(null);
@@ -89,7 +109,7 @@ export function MonthlyTrend() {
     };
 
     fetchData();
-  }, [selectedYear]);
+  }, [selectedYear, currentYear]);
 
   return (
     <div className="space-y-4">

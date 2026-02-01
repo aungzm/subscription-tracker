@@ -29,48 +29,66 @@ type ApiResponse = {
   categories: CategoryMeta[];
 };
 
-export function YearlyTrend() {
-  const [chartData, setChartData] = React.useState<YearlyDataPoint[]>([]);
-  const [categories, setCategories] = React.useState<CategoryMeta[]>([]);
-  const [loading, setLoading] = React.useState(true);
+type YearlyTrendProps = {
+  initialData?: ApiResponse;
+};
+
+export function YearlyTrend({ initialData }: YearlyTrendProps) {
+  // Format initial data if provided
+  const formattedInitialData = React.useMemo(() => {
+    if (!initialData?.yearlyData) return [];
+    return initialData.yearlyData.map(item => ({
+      ...item,
+      name: item.year.toString(),
+    }));
+  }, [initialData]);
+
+  const [chartData, setChartData] = React.useState<YearlyDataPoint[]>(formattedInitialData);
+  const [categories, setCategories] = React.useState<CategoryMeta[]>(
+    initialData?.categories ?? []
+  );
+  const [loading, setLoading] = React.useState(!initialData);
   const [error, setError] = React.useState<string | null>(null);
 
   // Create a chart config from the categories - we'll add the total separately
   const chartConfig = React.useMemo(() => {
     const config: Record<string, { color: string, label: string }> = {};
-    
+
     // Add all categories from API
     categories.forEach(cat => {
       config[cat.id] = { color: cat.color, label: cat.name };
     });
-    
+
     // Add the total line with a fixed color
     config["total"] = { color: "#ff0000", label: "Total" };
-    
+
     return config;
   }, [categories]);
 
-  // Fetch data from the API
+  // Fetch data from the API (only if no initial data)
   React.useEffect(() => {
+    // Skip if we have initial data
+    if (initialData) return;
+
     const fetchData = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
         const response = await fetch(`/api/analytics/yearly`);
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch data');
         }
-        
+
         const data: ApiResponse = await response.json();
-        
+
         // Format the data for the chart - convert year to string for display
         const formattedData = data.yearlyData.map(item => ({
           ...item,
           name: item.year.toString(), // Add name field for XAxis
         }));
-        
+
         setChartData(formattedData);
         setCategories(data.categories);
       } catch (err) {
@@ -82,7 +100,7 @@ export function YearlyTrend() {
     };
 
     fetchData();
-  }, []);
+  }, [initialData]);
 
   // Combine API categories with the total for the chart legend
   const allCategories = React.useMemo(() => {
