@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { MonthlyTrend } from "@/components/analytics/monthly-trend"
 import { YearlyTrend } from "@/components/analytics/yearly-trend"
 
@@ -114,7 +115,7 @@ export default function AnalyticsPage() {
             <CardContent>
               <div className="text-2xl font-bold">
                 {loading
-                  ? "Loading..."
+                  ? <Skeleton className="h-8 w-[100px]" />
                   : error
                     ? "Error loading data"
                     : formatCurrency(data?.averageMonthly.value || 0, data?.averageMonthly.currency)
@@ -133,7 +134,7 @@ export default function AnalyticsPage() {
             <CardContent>
               <div className="text-2xl font-bold">
                 {loading
-                  ? "Loading..."
+                  ? <Skeleton className="h-8 w-[100px]" />
                   : error
                     ? "Error loading data"
                     : formatCurrency(data?.averageYearly.value || 0, data?.averageYearly.currency)
@@ -151,10 +152,10 @@ export default function AnalyticsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loading ? "Loading..." : error ? "Error" : largestExpense.name}
+                {loading ? <Skeleton className="h-8 w-[120px]" /> : error ? "Error" : largestExpense.name}
               </div>
               <p className="text-xs text-muted-foreground">
-                {loading ? "" : error ? "Error loading data" : largestExpense.cost}
+                {loading ? <Skeleton className="h-4 w-[100px] mt-1" /> : error ? "Error loading data" : largestExpense.cost}
               </p>
             </CardContent>
           </Card>

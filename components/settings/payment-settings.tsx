@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/components/ui/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
 
 type PaymentMethod = {
     id: string
@@ -40,6 +41,7 @@ const paymentTypes: Record<string, string> = {
 export function PaymentSettings() {
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
     const [isLoading, setIsLoading] = useState(false)
+    const [isInitialLoading, setIsInitialLoading] = useState(true)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [editingMethod, setEditingMethod] = useState<PaymentMethod | null>(null)
 
@@ -94,6 +96,7 @@ export function PaymentSettings() {
             })
         } finally {
             setIsLoading(false)
+            setIsInitialLoading(false)
         }
     }
 
@@ -200,6 +203,34 @@ export function PaymentSettings() {
         }
 
         return display
+    }
+
+    if (isInitialLoading) {
+        return (
+            <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                    <Skeleton className="h-6 w-[140px]" />
+                    <Skeleton className="h-10 w-[120px]" />
+                </div>
+                <div className="space-y-2">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="flex items-center justify-between p-4 border rounded-md">
+                            <div className="flex items-center space-x-3">
+                                <Skeleton className="h-10 w-10 rounded-md" />
+                                <div className="flex flex-col space-y-1">
+                                    <Skeleton className="h-4 w-[180px]" />
+                                    <Skeleton className="h-3 w-[100px]" />
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <Skeleton className="h-8 w-8" />
+                                <Skeleton className="h-8 w-8" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )
     }
 
     return (

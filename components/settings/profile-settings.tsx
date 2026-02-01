@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -67,6 +68,7 @@ type CurrencyList = {
 
 export function ProfileSettings() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isDataLoading, setIsDataLoading] = useState(true);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [currencies, setCurrencies] = useState<CurrencyList>({});
   const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
@@ -131,6 +133,8 @@ export function ProfileSettings() {
           description: "Failed to load profile data.",
           variant: "destructive",
         });
+      } finally {
+        setIsDataLoading(false);
       }
     }
 
@@ -200,6 +204,37 @@ export function ProfileSettings() {
         .map((n) => n[0])
         .join("")
     : "U";
+
+  if (isDataLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <Skeleton className="h-9 w-[120px]" />
+        </div>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-[60px]" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-[60px]" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-4 w-[240px]" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-[120px]" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-4 w-[180px]" />
+          </div>
+          <div className="flex justify-between">
+            <Skeleton className="h-10 w-[140px]" />
+            <Skeleton className="h-10 w-[120px]" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

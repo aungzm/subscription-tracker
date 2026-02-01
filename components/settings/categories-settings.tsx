@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { PlusCircle, Trash2, Check, ChevronDown, Pencil, X } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Import shadcn/ui components
 import {
@@ -46,6 +47,7 @@ const colorOptions = [
 
 export const CategoriesSettings = () => {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [newCategory, setNewCategory] = useState("");
   const [newCategoryColor, setNewCategoryColor] = useState("#3b82f6");
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
@@ -66,6 +68,8 @@ export const CategoriesSettings = () => {
         setCategories(data);
       } catch (error) {
         console.error("Error fetching categories:", error);
+      } finally {
+        setIsLoading(false);
       }
     }
     fetchCategories();
@@ -146,6 +150,32 @@ export const CategoriesSettings = () => {
       console.error("Error updating category:", error);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-2">
+          <Skeleton className="h-10 flex-1" />
+          <Skeleton className="h-10 w-10" />
+          <Skeleton className="h-10 w-[80px]" />
+        </div>
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between p-3 border rounded-md">
+              <div className="flex items-center space-x-2">
+                <Skeleton className="h-5 w-5 rounded-full" />
+                <Skeleton className="h-4 w-[120px]" />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Skeleton className="h-4 w-4" />
+                <Skeleton className="h-4 w-4" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
   <TooltipProvider>

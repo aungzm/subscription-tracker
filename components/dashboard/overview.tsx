@@ -78,7 +78,6 @@ export function Overview() {
         })
         
         setSubscriptionData(mappedData)
-        console.log("Subscription data fetched successfully:", mappedData)
       } catch (err) {
         console.error("Failed to fetch subscription data:", err)
         setError("Failed to load subscription data. Please try again.")

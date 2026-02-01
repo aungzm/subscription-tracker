@@ -41,6 +41,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const providerSchema = z.object({
   id: z.string().optional(),
@@ -64,6 +65,7 @@ type Provider = z.infer<typeof providerSchema>;
 
 export function NotificationSettings() {
   const [isPending, startTransition] = useTransition();
+  const [isLoading, setIsLoading] = useState(true);
   const [providers, setProviders] = useState<Provider[]>([]);
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -111,6 +113,8 @@ export function NotificationSettings() {
         description: "Could not load notification providers.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -256,6 +260,36 @@ export function NotificationSettings() {
     if (editingProvider) {
       resetForm();
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex justify-between items-center mb-4">
+          <Skeleton className="h-10 w-[140px]" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <Skeleton className="h-6 w-[120px]" />
+                  <Skeleton className="h-8 w-8" />
+                </div>
+                <Skeleton className="h-4 w-[80px]" />
+              </CardHeader>
+              <CardContent className="space-y-1">
+                <Skeleton className="h-4 w-[180px]" />
+                <Skeleton className="h-4 w-[140px]" />
+              </CardContent>
+              <div className="p-6 pt-0">
+                <Skeleton className="h-9 w-[60px]" />
+              </div>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
