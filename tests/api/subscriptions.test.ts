@@ -23,6 +23,10 @@ jest.mock("next/server", () => ({
   },
 }));
 
+jest.mock("next/cache", () => ({
+  revalidateTag: jest.fn(),
+}));
+
 const mockedAuth = auth as jest.MockedFunction<typeof auth>;
 const mockedNextJson = NextResponse.json as unknown as jest.MockedFunction<
   <T>(body: T, init?: { status: number }) => { body: T; init?: { status: number } }
@@ -53,10 +57,14 @@ describe("API Integration Tests: Subscriptions [id]", () => {
   });
 
   describe("GET /api/subscriptions/[id]", () => {
+    const makeCtxGet = (id: string) => ({
+      params: Promise.resolve({ id }),
+    });
+
     it("returns 401 when unauthenticated", async () => {
       mockedAuth.mockResolvedValueOnce(null);
       const req = new Request(`http://localhost/api/subscriptions/${netflixId}`);
-      const res = (await GET(req)) as unknown as ApiResponse<{ error: string }>;
+      const res = (await GET(req, makeCtxGet(netflixId))) as unknown as ApiResponse<{ error: string }>;
 
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Unauthorized" },
@@ -70,7 +78,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
       mockedPrisma.subscription.findFirst.mockResolvedValueOnce(null);
 
       const req = new Request(`http://localhost/api/subscriptions/${spotifyId}`);
-      const res = (await GET(req)) as unknown as ApiResponse<{ error: string }>;
+      const res = (await GET(req, makeCtxGet(spotifyId))) as unknown as ApiResponse<{ error: string }>;
 
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Subscription not found" },
@@ -82,7 +90,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
     it("returns 500 on database error", async () => {
       mockedPrisma.subscription.findFirst.mockRejectedValueOnce(new Error("DB fail"));
       const req = new Request(`http://localhost/api/subscriptions/${netflixId}`);
-      const res = (await GET(req)) as unknown as ApiResponse<{ error: string }>;
+      const res = (await GET(req, makeCtxGet(netflixId))) as unknown as ApiResponse<{ error: string }>;
 
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Failed to fetch subscription" },
@@ -112,7 +120,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
       mockedPrisma.subscription.findFirst.mockResolvedValueOnce(subscription as any);
 
       const req = new Request(`http://localhost/api/subscriptions/${netflixId}`);
-      const res = (await GET(req)) as ApiResponse<any>;
+      const res = (await GET(req, makeCtxGet(netflixId))) as ApiResponse<any>;
       const sub = res.body;
 
       // Core fields
@@ -124,9 +132,9 @@ describe("API Integration Tests: Subscriptions [id]", () => {
         billingFrequency: "monthly",
       });
 
-      // category & paymentMethod are names
-      expect(typeof sub.category).toBe("string");
-      expect(typeof sub.paymentMethod).toBe("string");
+      // category & paymentMethod are names (mapped by route handler)
+      expect(sub.category).toBe("Streaming");
+      expect(sub.paymentMethod).toBe("Visa");
 
       // reminders is an array of { date, providers: string[] }
       expect(Array.isArray(sub.reminders)).toBe(true);
@@ -204,7 +212,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
           id: netflixId,
           name: "MyNewSub",
           cost: 123.45,
-          billingFrequency: "yearly",
+          billingFrequency: "YEARLY",
           notes: "updated notes",
           currency: "EUR",
           categoryId: CATEGORY_IDS.PRODUCTIVITY,
@@ -218,7 +226,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
       const newData = {
         name: "MyNewSub",
         cost: 123.45,
-        billingFrequency: "yearly",
+        billingFrequency: "YEARLY",
         startDate: "2025-01-01T00:00:00.000Z",
         endDate: null,
         notes: "updated notes",
@@ -239,7 +247,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
         userId: aliceId,
         name: newData.name,
         cost: newData.cost,
-        billingFrequency: newData.billingFrequency,
+        billingFrequency: "YEARLY",
         notes: newData.notes,
         currency: newData.currency,
       });
@@ -280,7 +288,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
     it("returns 401 when unauthenticated", async () => {
       mockedAuth.mockResolvedValueOnce(null);
       const req = new Request(`http://localhost/api/subscriptions/${netflixId}`);
-      const res = (await DELETE(req, { params: { id: netflixId } })) as unknown as ApiResponse<{ error: string }>;
+      const res = (await DELETE(req, { params: Promise.resolve({ id: netflixId }) })) as unknown as ApiResponse<{ error: string }>;
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Unauthorized" },
         { status: 401 }
@@ -290,7 +298,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
     it("returns 404 when not found", async () => {
       mockedPrisma.subscription.findFirst.mockResolvedValueOnce(null);
       const req = new Request(`http://localhost/api/subscriptions/${netflixId}`);
-      const res = (await DELETE(req, { params: { id: netflixId } })) as unknown as ApiResponse<{ error: string }>;
+      const res = (await DELETE(req, { params: Promise.resolve({ id: netflixId }) })) as unknown as ApiResponse<{ error: string }>;
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Subscription not found" },
         { status: 404 }
@@ -303,7 +311,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
       mockedPrisma.subscription.delete.mockRejectedValueOnce(new Error("Delete fail"));
 
       const req = new Request(`http://localhost/api/subscriptions/${netflixId}`);
-      const res = (await DELETE(req, { params: { id: netflixId } })) as unknown as ApiResponse<{ error: string }>;
+      const res = (await DELETE(req, { params: Promise.resolve({ id: netflixId }) })) as unknown as ApiResponse<{ error: string }>;
       expect(mockedNextJson).toHaveBeenCalledWith(
         { error: "Failed to delete subscription" },
         { status: 500 }
@@ -316,7 +324,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
       mockedPrisma.subscription.delete.mockResolvedValueOnce(existingSub);
 
       const req = new Request(`http://localhost/api/subscriptions/${netflixId}`);
-      const res = (await DELETE(req, { params: { id: netflixId } })) as unknown as ApiResponse<{ message: string }>;
+      const res = (await DELETE(req, { params: Promise.resolve({ id: netflixId }) })) as unknown as ApiResponse<{ message: string }>;
       expect(res.body).toEqual({ message: "Subscription deleted successfully" });
 
       expect(mockedPrisma.subscription.delete).toHaveBeenCalled();

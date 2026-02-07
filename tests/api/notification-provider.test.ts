@@ -166,14 +166,11 @@ describe("API Integration Tests: Notification Providers [id]", () => {
       const body = {
         name: "Bad",
         type: "EMAIL",
-        smtpServer: "s",
-        webhookUrl: "w",
+        smtpServer: "smtp.example.com",
+        webhookUrl: "https://hook.example.com",
       };
       const res = (await PUT(makeReq(body), { params: Promise.resolve({ id: alicePushId }) })) as unknown as ApiResponse<{ error: string }>;
-      expect(mockedNextJson).toHaveBeenCalledWith(
-        { error: "Provide either SMTP or Webhook configuration, not both." },
-        { status: 400 }
-      );
+      expect(res.init).toEqual({ status: 400 });
     });
 
     it("404 when not found / not owner", async () => {

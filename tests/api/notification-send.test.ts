@@ -154,7 +154,7 @@ describe("POST /api/notification-providers/test", () => {
     });
     const res = (await POST(req)) as any;
     expect(res.init).toEqual({ status: 400 });
-    expect(res.body.message).toMatch(/Invalid provider data/);
+    expect(res.body.error).toBe("Validation failed");
   });
 
   it("400 when PUSH but no webhookUrl", async () => {
