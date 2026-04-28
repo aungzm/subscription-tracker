@@ -42,16 +42,16 @@ const formSchema = z.object({
 
 const passwordSchema = z
   .object({
-    oldPassword: z.string().min(6, {
+    currentPassword: z.string().min(1, {
       message: "Current password is required.",
     }),
-    newPassword: z.string().min(6, {
-      message: "New password must be at least 6 characters.",
+    newPassword: z.string().min(8, {
+      message: "New password must be at least 8 characters.",
     }),
-    confirmPassword: z.string(),
+    repeatPassword: z.string(),
   })
-  .refine((data) => data.newPassword === data.confirmPassword, {
-    path: ["confirmPassword"],
+  .refine((data) => data.newPassword === data.repeatPassword, {
+    path: ["repeatPassword"],
     message: "Passwords must match",
   });
 
@@ -80,7 +80,7 @@ export function ProfileSettings() {
 
   const passwordForm = useForm<z.infer<typeof passwordSchema>>({
     resolver: zodResolver(passwordSchema),
-    defaultValues: { oldPassword: "", newPassword: "", confirmPassword: "" },
+    defaultValues: { currentPassword: "", newPassword: "", repeatPassword: "" },
   });
 
   async function onPasswordSubmit(values: z.infer<typeof passwordSchema>) {
@@ -90,8 +90,9 @@ export function ProfileSettings() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          oldPassword: values.oldPassword,
+          currentPassword: values.currentPassword,
           newPassword: values.newPassword,
+          repeatPassword: values.repeatPassword,
         }),
       });
       if (!response.ok) throw new Error("Failed to change password");
@@ -339,7 +340,7 @@ export function ProfileSettings() {
             >
               <FormField
                 control={passwordForm.control}
-                name="oldPassword"
+                name="currentPassword"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Current Password</FormLabel>
@@ -365,7 +366,7 @@ export function ProfileSettings() {
               />
               <FormField
                 control={passwordForm.control}
-                name="confirmPassword"
+                name="repeatPassword"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Confirm New Password</FormLabel>
