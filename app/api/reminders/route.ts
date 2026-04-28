@@ -70,10 +70,8 @@ export async function POST(request: Request) {
         },
         data: {
           reminderDate: new Date(reminderDate),
-          // Clear existing notification providers and set new ones
           notificationProviders: {
-            disconnect: { id: '*' }, // Disconnect all existing
-            connect: notificationProviderIds.map((id: string) => ({ id })),
+            set: notificationProviderIds.map((id: string) => ({ id })),
           },
         },
       })

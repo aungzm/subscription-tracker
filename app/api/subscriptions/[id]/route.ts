@@ -55,6 +55,7 @@ export async function GET(
       category: subscription.category?.name ?? null,
       paymentMethod: subscription.paymentMethod?.name ?? null,
       reminders: subscription.reminders.map(reminder => ({
+        id: reminder.id,
         date: reminder.reminderDate,
         providers: reminder.notificationProviders.map(provider => provider.name),
       })),

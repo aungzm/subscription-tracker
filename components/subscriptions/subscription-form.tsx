@@ -83,6 +83,7 @@ type SubscriptionApiResponse = {
   category: string // name
   paymentMethod: string // name
   reminders: Array<{
+    id: string
     date: string | Date
     providers: string[] // names
   }>
@@ -202,6 +203,7 @@ export function SubscriptionForm({
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [fetchingData, setFetchingData] = useState(false)
+  const [initialReminderIds, setInitialReminderIds] = useState<string[]>([])
   const { categories, loading: categoriesLoading } = useCategories()
   const { providers, loading: providersLoading } = useNotificationProviders()
   const { currencies, loading: currenciesLoading } = useCurrencies()
@@ -279,6 +281,7 @@ export function SubscriptionForm({
             notes: data.notes || "",
             reminders:
               data.reminders?.map((reminder) => ({
+                id: reminder.id,
                 reminderDate: new Date(reminder.date),
                 notificationProviderIds: findIdsByNames(
                   providers,
@@ -287,6 +290,9 @@ export function SubscriptionForm({
               })) || [],
           }
           form.reset(formData)
+          setInitialReminderIds(
+            (data.reminders ?? []).map((r) => r.id).filter((id): id is string => !!id)
+          )
           setFetchingData(false)
         })
         .catch((error) => {
@@ -361,6 +367,21 @@ export function SubscriptionForm({
       }
 
       if (!response.ok) throw new Error("Failed to save subscription")
+
+      // Delete any reminders that were removed from the form (edit mode only)
+      if (mode === "edit" && initialReminderIds.length > 0) {
+        const remainingIds = new Set(
+          (values.reminders ?? [])
+            .map((r) => r.id)
+            .filter((id): id is string => !!id)
+        )
+        const removedIds = initialReminderIds.filter((id) => !remainingIds.has(id))
+        await Promise.all(
+          removedIds.map((id) =>
+            fetch(`/api/reminders/${id}`, { method: "DELETE" })
+          )
+        )
+      }
 
       // Handle reminders if any
       if (values.reminders && values.reminders.length > 0) {
