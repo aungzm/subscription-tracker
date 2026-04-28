@@ -114,7 +114,7 @@ describe("API Integration Tests: Subscriptions Root", () => {
     const validBody = {
       name: "Disney+",
       cost: 9.99,
-      billingFrequency: "MONTHLY",
+      billingFrequency: "monthly",
       startDate: "2025-01-01",
       currency: "USD",
     };

@@ -212,7 +212,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
           id: netflixId,
           name: "MyNewSub",
           cost: 123.45,
-          billingFrequency: "YEARLY",
+          billingFrequency: "yearly",
           notes: "updated notes",
           currency: "EUR",
           categoryId: CATEGORY_IDS.PRODUCTIVITY,
@@ -226,7 +226,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
       const newData = {
         name: "MyNewSub",
         cost: 123.45,
-        billingFrequency: "YEARLY",
+        billingFrequency: "yearly",
         startDate: "2025-01-01T00:00:00.000Z",
         endDate: null,
         notes: "updated notes",
@@ -247,7 +247,7 @@ describe("API Integration Tests: Subscriptions [id]", () => {
         userId: aliceId,
         name: newData.name,
         cost: newData.cost,
-        billingFrequency: "YEARLY",
+        billingFrequency: "yearly",
         notes: newData.notes,
         currency: newData.currency,
       });

@@ -38,10 +38,12 @@ export const currencyUpdateSchema = z.object({
 });
 
 // Subscription schemas
+export const billingFrequencyValues = ["weekly", "monthly", "yearly", "custom"] as const;
+
 export const subscriptionCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   cost: z.number().positive("Cost must be positive"),
-  billingFrequency: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]),
+  billingFrequency: z.enum(billingFrequencyValues),
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
@@ -53,7 +55,7 @@ export const subscriptionCreateSchema = z.object({
 export const subscriptionUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   cost: z.number().positive().optional(),
-  billingFrequency: z.enum(["DAILY", "WEEKLY", "MONTHLY", "YEARLY"]).optional(),
+  billingFrequency: z.enum(billingFrequencyValues).optional(),
   startDate: z.string().optional(),
   endDate: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
