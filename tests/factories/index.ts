@@ -57,7 +57,6 @@ export function createMockSubscription(
     startDate: now,
     endDate: null,
     notes: null,
-    isShared: false,
     userId: USER_IDS.ALICE,
     categoryId: CATEGORY_IDS.STREAMING,
     paymentMethodId: PAYMENT_METHOD_IDS.VISA,

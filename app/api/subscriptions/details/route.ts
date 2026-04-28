@@ -19,7 +19,6 @@ type SubscriptionWithRelations = {
   startDate: Date;
   endDate: Date | null;
   notes: string | null;
-  isShared: boolean;
   createdAt: Date;
   updatedAt: Date;
   userId: string;

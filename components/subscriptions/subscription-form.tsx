@@ -77,7 +77,6 @@ type SubscriptionApiResponse = {
   startDate: string | Date
   endDate?: string | Date | null
   notes?: string
-  isShared?: boolean
   createdAt?: string
   updatedAt?: string
   userId?: string

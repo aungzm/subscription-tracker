@@ -55,7 +55,6 @@ model Subscription {
   startDate        DateTime
   endDate          DateTime? // Nullable for ongoing subscriptions
   notes            String?
-  isShared         Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   userId          String
