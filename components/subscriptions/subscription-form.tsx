@@ -63,7 +63,6 @@ type SubscriptionFormValues = {
   startDate: Date
   endDate?: Date | null
   paymentMethod: string
-  paymentType: "automatic" | "manual"
   category: string
   notes?: string
   reminders?: ReminderFormValue[]
@@ -114,9 +113,6 @@ const formSchema = z.object({
   endDate: z.date().optional().nullable(),
   paymentMethod: z.string().min(1, {
     message: "Please select a payment method.",
-  }),
-  paymentType: z.enum(["automatic", "manual"], {
-    message: "Please select a payment type.",
   }),
   category: z.string().min(1, {
     message: "Please select a category.",
@@ -222,7 +218,6 @@ export function SubscriptionForm({
     currency: "",
     billingFrequency: "monthly",
     paymentMethod: "",
-    paymentType: "automatic",
     category: "",
     notes: "",
     reminders: [],
@@ -281,7 +276,6 @@ export function SubscriptionForm({
             startDate: new Date(data.startDate),
             endDate: data.endDate ? new Date(data.endDate) : null,
             paymentMethod: findIdByName(paymentMethods, data.paymentMethod),
-            paymentType: "automatic", // You may want to add this to your API
             category: findIdByName(categories, data.category),
             notes: data.notes || "",
             reminders:
@@ -639,34 +633,6 @@ export function SubscriptionForm({
                     ))}
                   </SelectContent>
                 </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="paymentType"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Payment Type</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select payment type" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="automatic">Automatic</SelectItem>
-                    <SelectItem value="manual">Manual</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Choose whether payments are processed automatically or
-                  manually
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
