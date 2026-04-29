@@ -583,7 +583,6 @@ export function SubscriptionForm({
                       mode="single"
                       selected={field.value}
                       onSelect={field.onChange}
-                      initialFocus
                     />
                   </PopoverContent>
                 </Popover>
@@ -616,7 +615,6 @@ export function SubscriptionForm({
                       mode="single"
                       selected={field.value ?? undefined}
                       onSelect={(date) => field.onChange(date ?? null)}
-                      initialFocus
                     />
                   </PopoverContent>
                 </Popover>
@@ -727,7 +725,6 @@ export function SubscriptionForm({
                               mode="single"
                               selected={field.value}
                               onSelect={field.onChange}
-                              initialFocus
                             />
                           </PopoverContent>
                         </Popover>
