@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { Calendar, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 // Define types for our API response
 type SubscriptionDate = {
@@ -162,81 +163,57 @@ export function Overview() {
     }).format(amount)
   }
   
-  // Helper to get color class based on category_color
-  function getColorClass(colorHex?: string): string {
-    if (!colorHex) return "bg-gray-500"
-    
-    // Map hex codes to Tailwind color classes based on your colorOptions palette
-    const colorMap: { [key: string]: string } = {
-      "#ef4444": "bg-red-500",
-      "#f97316": "bg-orange-500",
-      "#f59e0b": "bg-amber-500",
-      "#eab308": "bg-yellow-500",
-      "#84cc16": "bg-lime-500",
-      "#22c55e": "bg-green-500",
-      "#10b981": "bg-emerald-500",
-      "#14b8a6": "bg-teal-500",
-      "#06b6d4": "bg-cyan-500",
-      "#0ea5e9": "bg-sky-500",
-      "#3b82f6": "bg-blue-500",
-      "#6366f1": "bg-indigo-500",
-      "#8b5cf6": "bg-violet-500",
-      "#a855f7": "bg-purple-500",
-      "#d946ef": "bg-fuchsia-500",
-      "#ec4899": "bg-pink-500",
-      "#f43f5e": "bg-rose-500",
-      "#6b7280": "bg-gray-500"
-    }
-    
-    // Default fallback colors for common hex codes
-    return colorMap[colorHex.toLowerCase()] || "bg-blue-500"
-  }
-  
   return (
-    <div className="w-full max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-6">
+    <div className="w-full space-y-5 rounded-xl border border-border/60 bg-muted/20 p-4 shadow-sm">
       {/* Header with month navigation */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center space-x-2">
-          <Calendar className="h-6 w-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-800">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-primary/12 text-primary">
+            <Calendar className="h-4 w-4" />
+          </div>
+          <h2 className="font-heading text-2xl font-semibold">
             {monthName} {currentYear}
           </h2>
         </div>
         <div className="flex space-x-2">
-          <button 
+          <Button 
             onClick={prevMonth}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            variant="ghost"
+            size="icon-sm"
             aria-label="Previous month"
             disabled={isLoading}
           >
-            <ChevronLeft className="h-5 w-5 text-gray-600" />
-          </button>
-          <button 
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
             onClick={nextMonth}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            variant="ghost"
+            size="icon-sm"
             aria-label="Next month"
             disabled={isLoading}
           >
-            <ChevronRight className="h-5 w-5 text-gray-600" />
-          </button>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
       
       {/* Loading state */}
       {isLoading && (
-        <div className="flex justify-center items-center py-8">
-          <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-          <span className="ml-2 text-gray-600">Loading subscription data...</span>
+        <div className="flex items-center justify-center rounded-xl border border-border/60 bg-background/60 py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2 text-sm text-muted-foreground">
+            Loading subscription data...
+          </span>
         </div>
       )}
       
       {/* Error state */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg mb-6">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-destructive">
           <p>{error}</p>
-          <button 
+          <button
             onClick={() => window.location.reload()}
-            className="text-red-600 underline mt-2"
+            className="mt-2 text-sm underline"
           >
             Retry
           </button>
@@ -245,9 +222,9 @@ export function Overview() {
       
       {/* Calendar grid */}
       {!isLoading && !error && (
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-2 rounded-xl border border-border/60 bg-background/70 p-3">
           {weekDays.map((wd) => (
-            <div key={wd} className="font-medium text-center text-gray-500 py-2">
+            <div key={wd} className="py-2 text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {wd}
             </div>
           ))}
@@ -256,14 +233,14 @@ export function Overview() {
             cell ? (
               <div
                 key={idx}
-                className={`border rounded-lg p-1 min-h-16 flex flex-col relative cursor-pointer transition-all
-                  ${cell.isToday ? "border-blue-600 border-2" : "border-gray-200 hover:border-blue-300"}
-                  ${cell.subs.length > 0 ? "bg-blue-50" : ""}
-                  ${selectedDay === cell.day ? "ring-2 ring-blue-500 shadow-sm" : ""}
+                className={`relative flex min-h-20 cursor-pointer flex-col rounded-lg border p-2 transition-all
+                  ${cell.isToday ? "border-primary/80 shadow-[0_0_0_1px_hsl(var(--primary)/0.18)]" : "border-border/70"}
+                  ${cell.subs.length > 0 ? "bg-primary/8" : "bg-background/40 hover:bg-muted/50"}
+                  ${selectedDay === cell.day ? "bg-primary/12 ring-2 ring-primary/50" : ""}
                 `}
                 onClick={() => setSelectedDay(cell.day)}
               >
-                <div className={`flex justify-center mb-1 ${cell.isToday ? "text-blue-600 font-bold" : "font-medium"}`}>
+                <div className={`mb-1 flex justify-center text-sm ${cell.isToday ? "font-semibold text-primary" : "font-medium text-foreground"}`}>
                   {cell.day}
                 </div>
                 
@@ -273,17 +250,18 @@ export function Overview() {
                     {cell.subs.slice(0, 3).map((sub, i) => (
                       <div 
                         key={i} 
-                        className={`h-2 w-2 rounded-full ${getColorClass(sub.category_color)}`}
-                      ></div>
+                        className="h-2 w-2 rounded-full"
+                        style={{ backgroundColor: sub.category_color || "currentColor" }}
+                      />
                     ))}
                     {cell.subs.length > 3 && (
-                      <div className="h-2 w-2 rounded-full bg-gray-400"></div>
+                      <div className="h-2 w-2 rounded-full bg-muted-foreground/60"></div>
                     )}
                   </div>
                 )}
               </div>
             ) : (
-              <div key={idx} className="border border-gray-100 rounded-lg bg-gray-50 opacity-50"></div>
+              <div key={idx} className="rounded-lg border border-border/40 bg-muted/20 opacity-50"></div>
             )
           )}
         </div>
@@ -291,10 +269,10 @@ export function Overview() {
       
       {/* Subscription details */}
       {!isLoading && (
-        <div className="mt-6">
+        <div>
           {selectedDay ? (
-            <div className="border-t pt-4">
-              <h3 className="text-lg font-medium text-gray-800 mb-3">
+            <div className="rounded-xl border border-border/60 bg-background/70 p-4">
+              <h3 className="mb-3 font-heading text-lg font-medium">
                 Subscriptions on {monthName} {selectedDay}, {currentYear}
               </h3>
               {selectedDaySubs.length > 0 ? (
@@ -302,13 +280,16 @@ export function Overview() {
                   {selectedDaySubs.map((sub, i) => (
                     <div 
                       key={i}
-                      className="flex justify-between p-3 rounded-lg border border-gray-200 bg-white shadow-sm"
+                      className="flex items-center justify-between rounded-lg border border-border/60 bg-muted/30 p-3"
                     >
                       <div className="flex items-center">
-                        <div className={`w-3 h-3 rounded-full mr-2 ${getColorClass(sub.category_color)}`}></div>
+                        <div
+                          className="mr-2 h-3 w-3 rounded-full"
+                          style={{ backgroundColor: sub.category_color || "currentColor" }}
+                        />
                         <span className="font-medium">{sub.name}</span>
                         {sub.category && (
-                          <span className="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                          <span className="ml-2 rounded-full bg-muted px-2 py-1 text-xs text-muted-foreground">
                             {sub.category}
                           </span>
                         )}
@@ -320,11 +301,11 @@ export function Overview() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500">No subscriptions on this day</p>
+                <p className="text-sm text-muted-foreground">No subscriptions on this day</p>
               )}
             </div>
           ) : (
-            <div className="border-t pt-4 text-gray-500 text-center">
+            <div className="rounded-xl border border-dashed border-border/60 bg-background/40 px-4 py-6 text-center text-sm text-muted-foreground">
               Select a day to view subscription details
             </div>
           )}

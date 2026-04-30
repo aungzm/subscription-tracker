@@ -1,11 +1,11 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
 import { DashboardNav } from "@/components/dashboard/dashboard-nav"
 import { UserNav } from "@/components/dashboard/user-nav"
 import { ModeToggle } from "@/components/mode-toggle"
-import { cn } from "@/lib/utils"
+import { Separator } from "@/components/ui/separator"
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 
 // Define a type for the session user for clarity
 interface SessionUser {
@@ -27,54 +27,30 @@ export function ClientDashboardLayout({
   session: LayoutSession | null
   children: React.ReactNode
 }) {
-  const [isExpanded, setIsExpanded] = useState(true)
-  const toggleSidebar = () => setIsExpanded(!isExpanded)
-
-  // Ensure user exists before rendering UserNav
   if (!session?.user) {
     return null
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex h-14 items-center flex-end ml-1 mr-8">
-          <div className="mr-4 hidden md:flex">
-            <a href="/dashboard" className="mr-6 flex items-center space-x-2">
-              <span className={cn("font-bold ml-4", !isExpanded && "sr-only")}>
-                SubTracker
-              </span>
-            </a>
+    <SidebarProvider defaultOpen>
+      <DashboardNav />
+      <SidebarInset>
+        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-3 border-b border-border/60 bg-background/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:px-6">
+          <SidebarTrigger />
+          <Separator orientation="vertical" className="h-5" />
+          <div className="min-w-0 flex-1">
+            <p className="font-heading text-sm font-medium">Dashboard</p>
+            <p className="text-xs text-muted-foreground">
+              Monitor subscriptions, renewals, and spending.
+            </p>
           </div>
-          <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-            <div className="w-full flex-1 md:w-auto md:flex-none">
-              <div className="hidden md:block">
-                {/* Search component would go here */}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <ModeToggle />
-              <UserNav user={session.user} />
-            </div>
+          <div className="flex items-center gap-2">
+            <ModeToggle />
+            <UserNav user={session.user} />
           </div>
-        </div>
-      </header>
-      <div
-        className={cn(
-          "flex-1 md:grid",
-          isExpanded
-            ? "md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]"
-            : "md:grid-cols-[64px_1fr]",
-        )}
-      >
-        <aside className="hidden border-r bg-background md:block">
-          <DashboardNav
-            isExpanded={isExpanded}
-            toggleSidebar={toggleSidebar}
-          />
-        </aside>
+        </header>
         <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

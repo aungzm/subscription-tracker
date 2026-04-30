@@ -19,6 +19,14 @@ export function RecentSubscriptions({
 }: {
   subscriptions: RecentSubscription[];
 }) {
+  if (subscriptions.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
+        No subscriptions have been added yet.
+      </div>
+    );
+  }
+
   return (
     <Table>
       <TableHeader>
@@ -34,13 +42,17 @@ export function RecentSubscriptions({
         {subscriptions.map((subscription) => (
           <TableRow key={subscription.id}>
             <TableCell className="font-medium">{subscription.name}</TableCell>
-            <TableCell>${subscription.cost.toFixed(2)}</TableCell>
-            <TableCell className="capitalize">{subscription.billingFrequency}</TableCell>
+            <TableCell className="font-medium">${subscription.cost.toFixed(2)}</TableCell>
+            <TableCell className="capitalize text-muted-foreground">{subscription.billingFrequency}</TableCell>
             <TableCell>
               {format(new Date(subscription.startDate), "MMM d, yyyy")}
             </TableCell>
             <TableCell>
-              <Badge style={{ backgroundColor: subscription.category_color }}>
+              <Badge
+                variant="secondary"
+                className="border-transparent text-foreground"
+                style={{ backgroundColor: `${subscription.category_color}33` }}
+              >
                 {subscription.category}
               </Badge>
             </TableCell>

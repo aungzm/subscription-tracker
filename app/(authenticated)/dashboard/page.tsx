@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { Activity, CalendarClock, CreditCard, Wallet } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Overview } from "@/components/dashboard/overview";
 import { RecentSubscriptions } from "@/components/dashboard/recent-subscriptions";
@@ -56,78 +57,89 @@ async function getDashboardData(): Promise<DashboardData> {
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
+  const statCards = [
+    {
+      title: "Monthly spend",
+      value: `$${data.totals.totalMonthly.toFixed(2)}`,
+      note: "Recurring monthly baseline",
+      icon: Wallet,
+    },
+    {
+      title: "Yearly spend",
+      value: `$${data.totals.totalYearly.toFixed(2)}`,
+      note: "Projected annual cost",
+      icon: Activity,
+    },
+    {
+      title: "Active subscriptions",
+      value: String(data.totals.activeSubscriptions),
+      note: "Currently billing",
+      icon: CreditCard,
+    },
+    {
+      title: "Upcoming renewals",
+      value: String(data.totals.upcomingRenewals),
+      note: "Next 7 days",
+      icon: CalendarClock,
+    },
+  ];
 
   return (
-    <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
-      <div className="flex items-center justify-between space-y-2">
-        <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
+    <div className="flex-1 space-y-6 p-4 md:p-6 lg:p-8">
+      <div className="space-y-1">
+        <h2 className="font-heading text-3xl font-semibold tracking-tight">Dashboard</h2>
+        <p className="text-sm text-muted-foreground">
+          A quick view of your active services, renewal timing, and recent additions.
+        </p>
       </div>
       <Suspense fallback={<DashboardSkeleton />}>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Monthly</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${data.totals.totalMonthly.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">+2.5% from last month</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Yearly</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${data.totals.totalYearly.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">+18.1% from last year</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{data.totals.activeSubscriptions}</div>
-              <p className="text-xs text-muted-foreground">+2 from last year</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Upcoming Renewals</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{data.totals.upcomingRenewals}</div>
-              <p className="text-xs text-muted-foreground">In the next 7 days</p>
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {statCards.map((stat) => (
+            <Card key={stat.title} className="bg-card/80 backdrop-blur">
+              <CardHeader className="flex flex-row items-start justify-between">
+                <div>
+                  <CardDescription>{stat.title}</CardDescription>
+                  <CardTitle className="mt-2 text-3xl">{stat.value}</CardTitle>
+                </div>
+                <div className="flex size-9 items-center justify-center rounded-lg bg-primary/12 text-primary">
+                  <stat.icon className="size-4" />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <p className="text-xs text-muted-foreground">{stat.note}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-          <Card className="col-span-4">
-            <CardHeader>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(320px,0.85fr)]">
+          <Card className="bg-card/80">
+            <CardHeader className="border-b border-border/50">
               <CardTitle>Overview</CardTitle>
-              <CardDescription>Your subscription spending over time</CardDescription>
+              <CardDescription>
+                Browse subscription activity by date and inspect what renews when.
+              </CardDescription>
             </CardHeader>
-            <CardContent className="pl-2">
+            <CardContent className="pt-4">
               <Overview />
             </CardContent>
           </Card>
-          <Card className="col-span-3">
-            <CardHeader>
+          <Card className="bg-card/80">
+            <CardHeader className="border-b border-border/50">
               <CardTitle>Upcoming Renewals</CardTitle>
-              <CardDescription>Subscriptions renewing soon</CardDescription>
+              <CardDescription>Services billing in the near term</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <UpcomingRenewals renewals={data.upcomingRenewals} />
             </CardContent>
           </Card>
         </div>
         <div className="grid gap-4">
-          <Card className="col-span-4">
-            <CardHeader>
+          <Card className="bg-card/80">
+            <CardHeader className="border-b border-border/50">
               <CardTitle>Recent Subscriptions</CardTitle>
-              <CardDescription>Your recently added subscriptions</CardDescription>
+              <CardDescription>Newest subscriptions added to your workspace</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-4">
               <RecentSubscriptions subscriptions={data.recentSubscriptions} />
             </CardContent>
           </Card>
