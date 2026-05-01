@@ -85,7 +85,7 @@ export function LoginForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
         <FormField
           control={form.control}
           name="email"
@@ -96,6 +96,7 @@ export function LoginForm() {
                 <Input
                   placeholder="john@example.com"
                   type="email"
+                  className="h-11"
                   disabled={isPending}
                   {...field}
                 />
@@ -114,6 +115,7 @@ export function LoginForm() {
                 <Input
                   placeholder="********"
                   type="password"
+                  className="h-11"
                   disabled={isPending}
                   {...field}
                 />
@@ -123,9 +125,11 @@ export function LoginForm() {
           )}
         />
         {error && (
-          <p className="text-sm font-medium text-destructive">{error}</p>
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+            {error}
+          </div>
         )}
-        <Button type="submit" className="w-full" disabled={isPending}>
+        <Button type="submit" size="lg" className="w-full" disabled={isPending}>
           {isPending ? "Signing in..." : "Sign in"}
         </Button>
       </form>
