@@ -1,16 +1,18 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { auth } from "@/lib/auth"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   ArrowRight,
-  Bell,
-  CreditCard,
   BarChart3,
-  Tags,
+  Bell,
   Calendar,
-  Wallet
+  CreditCard,
+  ShieldCheck,
+  Tags,
+  Wallet,
 } from "lucide-react"
 
 export default async function Home() {
@@ -23,71 +25,79 @@ export default async function Home() {
   const features = [
     {
       icon: CreditCard,
-      title: "Track Subscriptions",
-      description: "Add and manage all your subscriptions with costs, billing cycles, and renewal dates."
+      title: "Track subscriptions",
+      description: "Keep every subscription, amount, and billing cadence in one organized workspace.",
     },
     {
       icon: BarChart3,
-      title: "Spending Analytics",
-      description: "View monthly and yearly spending trends with interactive charts."
+      title: "Spending analytics",
+      description: "Review monthly and yearly trends to see where recurring costs are growing.",
     },
     {
       icon: Bell,
-      title: "Custom Notifications",
-      description: "Set up email or webhook reminders before renewal dates."
+      title: "Custom reminders",
+      description: "Set up renewal notifications before charges hit your card or account.",
     },
     {
       icon: Tags,
-      title: "Categories",
-      description: "Organize subscriptions with custom color-coded categories."
+      title: "Category system",
+      description: "Group subscriptions by category so your recurring stack stays readable.",
     },
     {
       icon: Calendar,
-      title: "Upcoming Renewals",
-      description: "See which subscriptions are renewing soon at a glance."
+      title: "Renewal visibility",
+      description: "Spot upcoming renewals at a glance instead of getting surprised later.",
     },
     {
       icon: Wallet,
-      title: "Payment Methods",
-      description: "Track which payment method is used for each subscription."
-    }
+      title: "Payment mapping",
+      description: "See which card or payment method is attached to each active service.",
+    },
   ]
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-8">
-          <Link href="/" className="flex items-center gap-2">
-            <CreditCard className="h-6 w-6" />
-            <span className="text-xl font-bold">SubTracker</span>
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(18,184,134,0.16),transparent_24%),linear-gradient(180deg,hsl(var(--background)),hsl(var(--sidebar)))] text-foreground">
+      <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-8">
+          <Link href="/" className="flex items-center gap-3">
+            <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <CreditCard className="size-4" />
+            </div>
+            <div>
+              <p className="font-heading text-base font-semibold">SubTracker</p>
+              <p className="text-xs text-muted-foreground">Subscription command center</p>
+            </div>
           </Link>
-          <nav className="flex items-center gap-2">
+          <nav className="flex items-center gap-3">
             <Link href="/login">
               <Button variant="ghost">Login</Button>
             </Link>
             <Link href="/register">
-              <Button>Sign Up</Button>
+              <Button>Get Started</Button>
             </Link>
           </nav>
         </div>
       </header>
 
-      <main className="flex-1">
-        {/* Hero Section */}
-        <section className="container mx-auto px-4 md:px-8 py-16 md:py-24 lg:py-32">
-          <div className="mx-auto max-w-3xl text-center space-y-6">
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Take control of your subscriptions
-            </h1>
-            <p className="text-lg text-muted-foreground md:text-xl max-w-2xl mx-auto">
-              Track spending, get renewal reminders, and visualize where your money goes.
-              All your subscriptions organized in one place.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+      <main>
+        <section className="mx-auto grid max-w-7xl gap-10 px-4 py-16 md:px-8 md:py-24 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <div className="space-y-6">
+            <Badge variant="secondary" className="w-fit">
+              Designed for recurring spend clarity
+            </Badge>
+            <div className="max-w-2xl space-y-4">
+              <h1 className="font-heading text-5xl font-semibold leading-tight lg:text-6xl">
+                Take control of subscriptions before they take control of your budget.
+              </h1>
+              <p className="text-lg text-muted-foreground md:text-xl">
+                Track active services, monitor renewal timing, and understand recurring costs through a cleaner dashboard built for focus.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
               <Link href="/register">
-                <Button size="lg" className="w-full sm:w-auto gap-2">
-                  Get Started Free
-                  <ArrowRight className="h-4 w-4" />
+                <Button size="lg" className="w-full gap-2 sm:w-auto">
+                  Create Account
+                  <ArrowRight className="size-4" />
                 </Button>
               </Link>
               <Link href="/login">
@@ -96,55 +106,140 @@ export default async function Home() {
                 </Button>
               </Link>
             </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Card className="bg-card/70">
+                <CardHeader>
+                  <CardDescription>Monthly visibility</CardDescription>
+                  <CardTitle className="text-3xl">$239.88</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 text-sm text-muted-foreground">
+                  Example projected yearly cost from active recurring services.
+                </CardContent>
+              </Card>
+              <Card className="bg-card/70">
+                <CardHeader>
+                  <CardDescription>Upcoming renewals</CardDescription>
+                  <CardTitle className="text-3xl">7 days</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 text-sm text-muted-foreground">
+                  Stay ahead of charges with reminders and renewal tracking.
+                </CardContent>
+              </Card>
+              <Card className="bg-card/70">
+                <CardHeader>
+                  <CardDescription>Organized accounts</CardDescription>
+                  <CardTitle className="text-3xl">1 place</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 text-sm text-muted-foreground">
+                  One workspace for subscriptions, categories, and payment methods.
+                </CardContent>
+              </Card>
+            </div>
           </div>
+
+          <Card className="overflow-hidden border-border/70 bg-card/85 shadow-2xl">
+            <CardHeader className="border-b border-border/60">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Workspace preview</CardTitle>
+                  <CardDescription>How SubTracker organizes your recurring spend</CardDescription>
+                </div>
+                <div className="flex size-10 items-center justify-center rounded-lg bg-primary/12 text-primary">
+                  <ShieldCheck className="size-4" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card className="bg-muted/30">
+                  <CardHeader>
+                    <CardDescription>Streaming stack</CardDescription>
+                    <CardTitle>$29.97</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 pt-0 text-sm text-muted-foreground">
+                    <div className="flex items-center justify-between rounded-lg bg-background/70 px-3 py-2">
+                      <span>Netflix</span>
+                      <span>$15.99</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-background/70 px-3 py-2">
+                      <span>Spotify</span>
+                      <span>$10.99</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg bg-background/70 px-3 py-2">
+                      <span>Apple TV+</span>
+                      <span>$2.99</span>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-muted/30">
+                  <CardHeader>
+                    <CardDescription>Renewal queue</CardDescription>
+                    <CardTitle>Next 7 days</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 pt-0 text-sm text-muted-foreground">
+                    <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2">
+                      Netflix renews on May 28
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2">
+                      Notion renews on May 30
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2">
+                      Domain renews on June 1
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                <p className="text-sm font-medium">Why teams and individuals use it</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  SubTracker turns scattered recurring charges into a readable, searchable, and proactive workflow.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         </section>
 
-        {/* Features Section */}
-        <section className="container mx-auto px-4 md:px-8 py-16 border-t">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tight">Features</h2>
-            <p className="text-muted-foreground mt-2">Everything you need to manage your subscriptions</p>
+        <section className="mx-auto max-w-7xl px-4 py-4 md:px-8 md:py-10">
+          <div className="mb-8">
+            <h2 className="font-heading text-3xl font-semibold">Everything you need to manage subscriptions</h2>
+            <p className="mt-2 text-muted-foreground">
+              Purpose-built tools for understanding and reducing recurring spend.
+            </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {features.map((feature) => (
-              <Card key={feature.title} className="border bg-card">
-                <CardHeader className="pb-3">
-                  <feature.icon className="h-8 w-8 mb-2" />
-                  <CardTitle className="text-lg">{feature.title}</CardTitle>
+              <Card key={feature.title} className="bg-card/70">
+                <CardHeader>
+                  <div className="flex size-10 items-center justify-center rounded-lg bg-primary/12 text-primary">
+                    <feature.icon className="size-4" />
+                  </div>
+                  <CardTitle className="mt-3">{feature.title}</CardTitle>
+                  <CardDescription>{feature.description}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <CardDescription className="text-sm">
-                    {feature.description}
-                  </CardDescription>
-                </CardContent>
               </Card>
             ))}
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="container mx-auto px-4 md:px-8 py-16 border-t">
-          <div className="mx-auto max-w-2xl text-center space-y-6">
-            <h2 className="text-3xl font-bold tracking-tight">Start tracking today</h2>
-            <p className="text-muted-foreground">
-              Create a free account and get a clear view of your subscription spending.
-            </p>
-            <Link href="/register">
-              <Button size="lg" className="mt-2 gap-2">
-                Create Account
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
+        <section className="mx-auto max-w-5xl px-4 py-16 text-center md:px-8">
+          <Card className="bg-card/80">
+            <CardHeader>
+              <CardTitle className="text-3xl">Start tracking today</CardTitle>
+              <CardDescription>
+                Create a workspace, add your services, and get a clearer view of recurring spend.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <Link href="/register">
+                <Button size="lg" className="gap-2">
+                  Create Account
+                  <ArrowRight className="size-4" />
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
         </section>
       </main>
-
-      {/* Footer */}
-      <footer className="border-t py-8">
-        <div className="container mx-auto px-4 md:px-8 text-center text-sm text-muted-foreground">
-          SubTracker - Subscription Management
-        </div>
-      </footer>
     </div>
   )
 }
