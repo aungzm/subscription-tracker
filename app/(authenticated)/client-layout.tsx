@@ -4,8 +4,7 @@ import type React from "react"
 import { DashboardNav } from "@/components/dashboard/dashboard-nav"
 import { UserNav } from "@/components/dashboard/user-nav"
 import { ModeToggle } from "@/components/mode-toggle"
-import { Separator } from "@/components/ui/separator"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 // Define a type for the session user for clarity
 interface SessionUser {
@@ -32,12 +31,17 @@ export function ClientDashboardLayout({
   }
 
   return (
-    <SidebarProvider defaultOpen>
+    <SidebarProvider
+      defaultOpen
+      style={
+        {
+          "--sidebar-width-icon": "4rem",
+        } as React.CSSProperties
+      }
+    >
       <DashboardNav />
       <SidebarInset>
         <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-3 border-b border-border/60 bg-background/85 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/70 md:px-6">
-          <SidebarTrigger />
-          <Separator orientation="vertical" className="h-5" />
           <div className="min-w-0 flex-1">
             <p className="font-heading text-sm font-medium">Dashboard</p>
             <p className="text-xs text-muted-foreground">

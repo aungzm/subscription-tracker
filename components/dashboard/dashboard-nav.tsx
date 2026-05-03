@@ -2,7 +2,8 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, CreditCard, Home, Settings } from "lucide-react"
+import { BarChart3, ChevronLeft, ChevronRight, CreditCard, Home, Settings } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
   Sidebar,
   SidebarContent,
@@ -14,6 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 const navItems = [
@@ -41,24 +43,40 @@ const navItems = [
 
 export function DashboardNav() {
   const pathname = usePathname()
+  const { state, toggleSidebar } = useSidebar()
 
   return (
     <Sidebar variant="inset" collapsible="icon">
-      <SidebarHeader className="px-3 py-4">
-        <Link
-          href="/dashboard"
-          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold tracking-tight"
-        >
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <CreditCard className="size-4" />
-          </div>
-          <div className="group-data-[collapsible=icon]:hidden">
-            <div className="font-heading text-sm">SubTracker</div>
-            <div className="text-xs text-sidebar-foreground/70">
-              Subscription hub
+      <SidebarHeader className="gap-3 px-3 py-4">
+        <div className="flex items-center justify-between gap-2 group-data-[collapsible=icon]:justify-center">
+          <Link
+            href="/dashboard"
+            className="flex min-w-0 items-center gap-3 rounded-md text-sm font-semibold tracking-tight"
+          >
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <CreditCard className="size-4" />
             </div>
-          </div>
-        </Link>
+            <div className="min-w-0 group-data-[collapsible=icon]:hidden">
+              <div className="font-heading text-sm">SubTracker</div>
+              <div className="truncate text-xs text-sidebar-foreground/70">
+                Subscription hub
+              </div>
+            </div>
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0 group-data-[collapsible=icon]:hidden"
+            onClick={toggleSidebar}
+            aria-label={state === "expanded" ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            {state === "expanded" ? (
+              <ChevronLeft className="size-4" />
+            ) : (
+              <ChevronRight className="size-4" />
+            )}
+          </Button>
+        </div>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -74,6 +92,7 @@ export function DashboardNav() {
                     isActive={isActive}
                     tooltip={item.title}
                     size="lg"
+                    className="group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:rounded-xl"
                   >
                     <Link href={item.href}>
                       <item.icon className="size-4" />
