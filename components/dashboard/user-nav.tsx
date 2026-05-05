@@ -3,6 +3,7 @@
 import { signOut } from "next-auth/react"; 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,9 +20,11 @@ type UserNavProps = {
     email?: string | null;
     image?: string | null;
   };
+  showDetails?: boolean;
+  className?: string;
 };
 
-export function UserNav({ user }: UserNavProps) {
+export function UserNav({ user, showDetails = false, className }: UserNavProps) {
   const initials = user.name
     ? user.name
         .split(" ")
@@ -37,11 +40,26 @@ export function UserNav({ user }: UserNavProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-          <Avatar className="h-8 w-8">
+        <Button
+          variant="ghost"
+          className={cn(
+            "relative rounded-full",
+            showDetails
+              ? "h-12 w-full justify-start gap-3 rounded-xl px-2"
+              : "h-10 w-10 rounded-full",
+            className
+          )}
+        >
+          <Avatar className={cn(showDetails ? "h-9 w-9" : "h-8 w-8")}>
             <AvatarImage src={user.image || ""} alt={user.name || "User"} />
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
+          {showDetails && (
+            <div className="min-w-0 text-left">
+              <p className="truncate text-sm font-medium leading-none">{user.name || "User"}</p>
+              <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+            </div>
+          )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end" forceMount>
