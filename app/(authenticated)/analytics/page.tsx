@@ -203,8 +203,11 @@ export default async function AnalyticsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Monthly Trend</CardTitle>
+              <CardDescription>
+                Your subscription spending over the year
+              </CardDescription>
             </CardHeader>
-            <CardContent className="pl-2 mt-[-32px]">
+            <CardContent className="pt-2">
               <MonthlyTrend initialData={monthlyData} />
             </CardContent>
           </Card>
@@ -216,7 +219,7 @@ export default async function AnalyticsPage() {
                 Your subscription spending over the years
               </CardDescription>
             </CardHeader>
-            <CardContent className="pl-2">
+            <CardContent className="pt-2">
               <YearlyTrend initialData={yearlyData} />
             </CardContent>
           </Card>

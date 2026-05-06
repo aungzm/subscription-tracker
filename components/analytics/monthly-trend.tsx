@@ -113,11 +113,7 @@ export function MonthlyTrend({ initialData }: MonthlyTrendProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between pl-4">
-        <p className="text-sm text-muted-foreground">
-          Your subscription spending over the years
-        </p>
-
+      <div className="flex items-center justify-end">
         {availableYears.length > 0 && (
           <Select value={selectedYear} onValueChange={setSelectedYear}>
             <SelectTrigger className="w-24">
