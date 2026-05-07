@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Activity, CalendarClock, CreditCard, Wallet } from "lucide-react";
+import { Activity, CalendarClock, CreditCard, Minus, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Overview } from "@/components/dashboard/overview";
 import { RecentSubscriptions } from "@/components/dashboard/recent-subscriptions";
@@ -34,9 +34,45 @@ interface DashboardData {
     totalYearly: number;
     activeSubscriptions: number;
     upcomingRenewals: number;
+    trends: {
+      totalMonthly: TrendMetric;
+      totalYearly: TrendMetric;
+      activeSubscriptions: TrendMetric;
+      upcomingRenewals: TrendMetric;
+    };
   };
   recentSubscriptions: RecentSubscription[];
   upcomingRenewals: UpcomingRenewal[];
+}
+
+interface TrendMetric {
+  delta: number;
+  percentageChange: number | null;
+  comparisonLabel: string;
+}
+
+function formatTrend(metric: TrendMetric, deltaFormatter?: (value: number) => string) {
+  if (metric.delta === 0) {
+    return {
+      icon: Minus,
+      className: "text-muted-foreground",
+      text: `No change ${metric.comparisonLabel}`,
+    };
+  }
+
+  const isPositive = metric.delta > 0;
+  const icon = isPositive ? TrendingUp : TrendingDown;
+  const className = isPositive ? "text-primary" : "text-foreground";
+  const deltaText =
+    metric.percentageChange === null
+      ? `${isPositive ? "+" : ""}${deltaFormatter ? deltaFormatter(Math.abs(metric.delta)) : Math.abs(metric.delta).toFixed(2)}`
+      : `${isPositive ? "+" : ""}${metric.percentageChange.toFixed(1)}%`;
+
+  return {
+    icon,
+    className,
+    text: `${deltaText} ${metric.comparisonLabel}`,
+  };
 }
 
 async function getDashboardData(): Promise<DashboardData> {
@@ -61,25 +97,29 @@ export default async function DashboardPage() {
     {
       title: "Monthly spend",
       value: `$${data.totals.totalMonthly.toFixed(2)}`,
-      note: "Recurring monthly baseline",
+      note: "Estimated cost based on active monthly billing",
+      trend: formatTrend(data.totals.trends.totalMonthly, (value) => `$${value.toFixed(2)}`),
       icon: Wallet,
     },
     {
       title: "Yearly spend",
       value: `$${data.totals.totalYearly.toFixed(2)}`,
-      note: "Projected annual cost",
+      note: "Estimated annualized cost across active subscriptions",
+      trend: formatTrend(data.totals.trends.totalYearly, (value) => `$${value.toFixed(2)}`),
       icon: Activity,
     },
     {
       title: "Active subscriptions",
       value: String(data.totals.activeSubscriptions),
-      note: "Currently billing",
+      note: "Subscriptions currently marked active",
+      trend: formatTrend(data.totals.trends.activeSubscriptions, (value) => String(Math.round(value))),
       icon: CreditCard,
     },
     {
       title: "Upcoming renewals",
       value: String(data.totals.upcomingRenewals),
-      note: "Next 7 days",
+      note: "Renewals scheduled within the next 7 days",
+      trend: formatTrend(data.totals.trends.upcomingRenewals, (value) => String(Math.round(value))),
       icon: CalendarClock,
     },
   ];
@@ -107,6 +147,10 @@ export default async function DashboardPage() {
               </CardHeader>
               <CardContent className="pt-0">
                 <p className="text-xs text-muted-foreground">{stat.note}</p>
+                <div className={`mt-3 flex items-center gap-1.5 text-xs ${stat.trend.className}`}>
+                  <stat.trend.icon className="size-3.5" />
+                  <span>{stat.trend.text}</span>
+                </div>
               </CardContent>
             </Card>
           ))}

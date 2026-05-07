@@ -29,6 +29,86 @@ type SubscriptionWithRelations = {
   reminders: { id: string; reminderDate: Date }[];
 };
 
+type TrendMetric = {
+  delta: number;
+  percentageChange: number | null;
+  comparisonLabel: string;
+};
+
+function incrementDateByFrequency(date: Date, billingFrequency: string) {
+  const next = new Date(date);
+
+  if (billingFrequency === "monthly") {
+    next.setMonth(next.getMonth() + 1);
+    return next;
+  }
+
+  if (billingFrequency === "yearly") {
+    next.setFullYear(next.getFullYear() + 1);
+    return next;
+  }
+
+  if (billingFrequency === "weekly") {
+    next.setDate(next.getDate() + 7);
+    return next;
+  }
+
+  return next;
+}
+
+function isSubscriptionActiveOnDate(sub: SubscriptionWithRelations, date: Date) {
+  return sub.startDate <= date && (!sub.endDate || sub.endDate > date);
+}
+
+function hasRenewalInWindow(
+  sub: SubscriptionWithRelations,
+  windowStart: Date,
+  windowEnd: Date
+) {
+  const effectiveEnd =
+    sub.endDate && sub.endDate < windowEnd ? sub.endDate : windowEnd;
+
+  if (effectiveEnd < windowStart) {
+    return false;
+  }
+
+  if (
+    sub.billingFrequency !== "monthly" &&
+    sub.billingFrequency !== "yearly" &&
+    sub.billingFrequency !== "weekly"
+  ) {
+    return isWithinInterval(sub.startDate, { start: windowStart, end: effectiveEnd });
+  }
+
+  let occurrence = new Date(sub.startDate);
+
+  while (occurrence < windowStart) {
+    const nextOccurrence = incrementDateByFrequency(occurrence, sub.billingFrequency);
+    if (nextOccurrence.getTime() === occurrence.getTime()) {
+      break;
+    }
+    occurrence = nextOccurrence;
+  }
+
+  return occurrence <= effectiveEnd && occurrence >= windowStart;
+}
+
+function buildTrendMetric(
+  currentValue: number,
+  previousValue: number,
+  comparisonLabel: string
+): TrendMetric {
+  const delta = Number((currentValue - previousValue).toFixed(2));
+  const percentageChange =
+    previousValue === 0 ? null : Number((((currentValue - previousValue) / previousValue) * 100).toFixed(1));
+
+  return {
+    delta,
+    percentageChange,
+    comparisonLabel,
+  };
+}
+
 export async function GET(req: NextRequest) {
   const session = await auth();
 
@@ -66,6 +146,9 @@ export async function GET(req: NextRequest) {
   // Calculate upcoming renewals (next 7 days)
   const today = startOfDay(new Date());
   const weekFromNow = endOfDay(addDays(today, 7));
+  const comparisonDate = startOfDay(addDays(today, -30));
+  const previousWindowStart = startOfDay(addDays(today, -7));
+  const previousWindowEnd = endOfDay(addDays(today, -1));
 
   // Helper to get next renewal date
   function getNextRenewalDate(sub: SubscriptionWithRelations) {
@@ -111,9 +194,12 @@ export async function GET(req: NextRequest) {
   let totalMonthly = 0;
   let totalYearly = 0;
   let activeSubscriptions = 0;
+  let comparisonMonthly = 0;
+  let comparisonYearly = 0;
+  let comparisonActiveSubscriptions = 0;
 
   for (const sub of subscriptions) {
-    if (!sub.endDate || new Date(sub.endDate) > today) {
+    if (isSubscriptionActiveOnDate(sub, today)) {
       activeSubscriptions += 1;
 
       // Convert subscription cost to user's preferred currency (sync lookup)
@@ -132,7 +218,30 @@ export async function GET(req: NextRequest) {
       totalMonthly += result.amount;
       totalYearly += result.amount * 12;
     }
+
+    if (isSubscriptionActiveOnDate(sub, comparisonDate)) {
+      comparisonActiveSubscriptions += 1;
+
+      const comparisonResult = normalizeToMonthlyCostSyncSafe(
+        sub.cost,
+        sub.currency,
+        sub.billingFrequency,
+        userCurrency,
+        ratesMap
+      );
+
+      if (!comparisonResult.success && comparisonResult.error) {
+        conversionErrors.push(`${sub.name}: ${comparisonResult.error}`);
+      }
+
+      comparisonMonthly += comparisonResult.amount;
+      comparisonYearly += comparisonResult.amount * 12;
+    }
   }
+
+  const previousUpcomingRenewals = subscriptions.filter((sub) =>
+    hasRenewalInWindow(sub, previousWindowStart, previousWindowEnd)
+  ).length;
 
   // Convert costs for recent subscriptions (sync lookups)
   const convertedRecentSubscriptions = recentSubscriptions.map((sub) => {
@@ -184,6 +293,20 @@ export async function GET(req: NextRequest) {
       currency: userCurrency,
       activeSubscriptions,
       upcomingRenewals: upcomingRenewals.length,
+      trends: {
+        totalMonthly: buildTrendMetric(totalMonthly, comparisonMonthly, "vs 30 days ago"),
+        totalYearly: buildTrendMetric(totalYearly, comparisonYearly, "vs 30 days ago"),
+        activeSubscriptions: buildTrendMetric(
+          activeSubscriptions,
+          comparisonActiveSubscriptions,
+          "vs 30 days ago"
+        ),
+        upcomingRenewals: buildTrendMetric(
+          upcomingRenewals.length,
+          previousUpcomingRenewals,
+          "vs previous 7 days"
+        ),
+      },
     },
     recentSubscriptions: convertedRecentSubscriptions,
     upcomingRenewals: convertedUpcomingRenewals,
