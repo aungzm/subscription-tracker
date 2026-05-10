@@ -4,12 +4,14 @@ import { format } from "date-fns";
 import { CalendarClock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/currency";
 
 interface UpcomingRenewal {
   id: string;
   name: string;
   nextRenewal: string; // string from API
   cost: number;
+  currency: string;
   billingFrequency: string;
 }
 
@@ -45,7 +47,9 @@ export function UpcomingRenewals({
                   {format(new Date(renewal.nextRenewal), "MMM d, yyyy")}
               </p>
             </div>
-            <div className="font-medium">${renewal.cost.toFixed(2)}</div>
+            <div className="font-medium">
+              {formatCurrency(renewal.cost, renewal.currency)}
+            </div>
           </CardContent>
         </Card>
       ))}

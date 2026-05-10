@@ -13,6 +13,23 @@ interface ExchangeAPIResponse {
 const ratesCache: Map<string, { rates: ExchangeRates; timestamp: number }> = new Map();
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
+export function formatCurrency(
+  amount: number,
+  currency: string = "USD",
+  locale: string = "en-US"
+): string {
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
+  } catch {
+    return `${currency} ${amount.toFixed(2)}`;
+  }
+}
+
 /**
  * Fetch exchange rates for a given base currency
  * Results are cached for 24 hours since rates are updated daily

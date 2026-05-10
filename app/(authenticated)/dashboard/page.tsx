@@ -5,6 +5,7 @@ import { Overview } from "@/components/dashboard/overview";
 import { RecentSubscriptions } from "@/components/dashboard/recent-subscriptions";
 import { UpcomingRenewals } from "@/components/dashboard/upcoming-renewals";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
+import { formatCurrency } from "@/lib/currency";
 import { cookies, headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ interface RecentSubscription {
   id: string;
   name: string;
   cost: number;
+  currency: string;
   billingFrequency: string;
   startDate: string; // Use string for JSON dates
   category: string;
@@ -25,6 +27,7 @@ interface UpcomingRenewal {
   name: string;
   nextRenewal: string; // Use string for JSON dates
   cost: number;
+  currency: string;
   billingFrequency: string;
 }
 
@@ -32,6 +35,7 @@ interface DashboardData {
   totals: {
     totalMonthly: number;
     totalYearly: number;
+    currency: string;
     activeSubscriptions: number;
     upcomingRenewals: number;
     trends: {
@@ -96,16 +100,20 @@ export default async function DashboardPage() {
   const statCards = [
     {
       title: "Monthly spend",
-      value: `$${data.totals.totalMonthly.toFixed(2)}`,
+      value: formatCurrency(data.totals.totalMonthly, data.totals.currency),
       note: "Estimated cost based on active monthly billing",
-      trend: formatTrend(data.totals.trends.totalMonthly, (value) => `$${value.toFixed(2)}`),
+      trend: formatTrend(data.totals.trends.totalMonthly, (value) =>
+        formatCurrency(value, data.totals.currency)
+      ),
       icon: Wallet,
     },
     {
       title: "Yearly spend",
-      value: `$${data.totals.totalYearly.toFixed(2)}`,
+      value: formatCurrency(data.totals.totalYearly, data.totals.currency),
       note: "Estimated annualized cost across active subscriptions",
-      trend: formatTrend(data.totals.trends.totalYearly, (value) => `$${value.toFixed(2)}`),
+      trend: formatTrend(data.totals.trends.totalYearly, (value) =>
+        formatCurrency(value, data.totals.currency)
+      ),
       icon: Activity,
     },
     {

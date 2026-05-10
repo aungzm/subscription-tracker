@@ -3,11 +3,13 @@
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatCurrency } from "@/lib/currency";
 
 interface RecentSubscription {
   id: string;
   name: string;
   cost: number;
+  currency: string;
   billingFrequency: string;
   startDate: string; // string from API
   category: string;
@@ -42,7 +44,9 @@ export function RecentSubscriptions({
         {subscriptions.map((subscription) => (
           <TableRow key={subscription.id}>
             <TableCell className="font-medium">{subscription.name}</TableCell>
-            <TableCell className="font-medium">${subscription.cost.toFixed(2)}</TableCell>
+            <TableCell className="font-medium">
+              {formatCurrency(subscription.cost, subscription.currency)}
+            </TableCell>
             <TableCell className="capitalize text-muted-foreground">{subscription.billingFrequency}</TableCell>
             <TableCell>
               {format(new Date(subscription.startDate), "MMM d, yyyy")}

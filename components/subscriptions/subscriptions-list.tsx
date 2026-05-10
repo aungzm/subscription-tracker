@@ -39,12 +39,14 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { toast } from "@/components/ui/use-toast"
+import { formatCurrency } from "@/lib/currency"
 
 interface Subscription {
   startDate: string | Date
   id: string
   name: string
   cost: number
+  currency: string
   billingFrequency: string
   category: { id: string; name: string; color?: string } | null
   paymentMethod: { id: string; name: string } | null
@@ -480,7 +482,9 @@ export function SubscriptionsList({ billingFrequency }: SubscriptionsListProps) 
                     <TableCell className="font-medium">
                       {subscription.name}
                     </TableCell>
-                    <TableCell>${subscription.cost.toFixed(2)}</TableCell>
+                    <TableCell>
+                      {formatCurrency(subscription.cost, subscription.currency)}
+                    </TableCell>
                     <TableCell className="capitalize">
                       {subscription.billingFrequency}
                     </TableCell>
