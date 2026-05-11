@@ -2,14 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import {
-  addMonths,
-  addYears,
-  format,
-  isAfter,
-  setMonth,
-  setYear,
-} from "date-fns"
+import { format } from "date-fns"
 import { ArrowUpDown, Edit, MoreHorizontal, Search, Trash, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -40,6 +33,7 @@ import {
 } from "@/components/ui/table"
 import { toast } from "@/components/ui/use-toast"
 import { formatCurrency } from "@/lib/currency"
+import { getNextBillingDateValue, getRenewalTiming } from "@/lib/renewals"
 
 interface Subscription {
   startDate: string | Date
@@ -65,42 +59,6 @@ type SortOption =
   | "cost-desc"
   | "cost-asc"
   | "billing-asc"
-
-function getNextBillingDateValue(startDate: Date, billingFrequency: string): Date {
-  const now = new Date()
-
-  if (billingFrequency === "monthly") {
-    let next = setMonth(new Date(now), now.getMonth())
-    next.setDate(startDate.getDate())
-    if (isAfter(now, next)) {
-      next = addMonths(next, 1)
-    }
-    return next
-  }
-
-  if (billingFrequency === "yearly") {
-    let next = setYear(
-      setMonth(new Date(now), new Date(startDate).getMonth()),
-      now.getFullYear()
-    )
-    next.setDate(new Date(startDate).getDate())
-    if (isAfter(now, next)) {
-      next = addYears(next, 1)
-    }
-    return next
-  }
-
-  return new Date(startDate)
-}
-
-function getNextBillingDate(startDate: Date, billingFrequency: string): string {
-  return format(
-    getNextBillingDateValue(startDate, billingFrequency),
-    billingFrequency === "monthly" || billingFrequency === "yearly"
-      ? "MMM d"
-      : "MMM d, yyyy"
-  )
-}
 
 export function SubscriptionsList({ billingFrequency }: SubscriptionsListProps) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
@@ -469,6 +427,11 @@ export function SubscriptionsList({ billingFrequency }: SubscriptionsListProps) 
             ) : (
               visibleSubscriptions.map((subscription) => {
                 const startDate = new Date(subscription.startDate)
+                const nextBillingDate = getNextBillingDateValue(
+                  startDate,
+                  subscription.billingFrequency
+                )
+                const renewalTiming = getRenewalTiming(nextBillingDate)
 
                 return (
                   <TableRow key={subscription.id}>
@@ -488,8 +451,33 @@ export function SubscriptionsList({ billingFrequency }: SubscriptionsListProps) 
                     <TableCell className="capitalize">
                       {subscription.billingFrequency}
                     </TableCell>
-                    <TableCell>
-                      {getNextBillingDate(startDate, subscription.billingFrequency)}
+                    <TableCell className="space-y-2">
+                      <div>
+                        {format(
+                          nextBillingDate,
+                          subscription.billingFrequency === "monthly" ||
+                            subscription.billingFrequency === "yearly"
+                            ? "MMM d"
+                            : "MMM d, yyyy"
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant="secondary">
+                          {renewalTiming.countdownLabel}
+                        </Badge>
+                        {renewalTiming.urgencyLabel && (
+                          <Badge
+                            variant="outline"
+                            className={
+                              renewalTiming.status === "today"
+                                ? "border-primary/40 bg-primary/10 text-primary"
+                                : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                            }
+                          >
+                            {renewalTiming.urgencyLabel}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Badge
