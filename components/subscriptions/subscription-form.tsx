@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useFieldArray } from "react-hook-form"
 import * as z from "zod"
 import { CalendarIcon, Plus, Trash2 } from "lucide-react"
-import { format } from "date-fns"
+import { format, subDays } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import type { Resolver } from "react-hook-form"
@@ -42,6 +42,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
+import { getNextBillingDateValue } from "@/lib/renewals"
 
 // --- TYPES ---
 type NotificationProvider = { id: string; name: string }
@@ -51,9 +52,12 @@ type Currency = { code: string; name: unknown }
 
 type ReminderFormValue = {
   id?: string
+  reminderPreset?: ReminderPreset
   reminderDate: Date
   notificationProviderIds: string[]
 }
+
+type ReminderPreset = "custom" | "1-day-before" | "3-days-before" | "1-week-before"
 
 type SubscriptionFormValues = {
   name: string
@@ -89,9 +93,23 @@ type SubscriptionApiResponse = {
   }>
 }
 
+const REMINDER_PRESET_OPTIONS: Array<{
+  value: ReminderPreset
+  label: string
+  daysBefore: number | null
+}> = [
+  { value: "1-day-before", label: "1 day before", daysBefore: 1 },
+  { value: "3-days-before", label: "3 days before", daysBefore: 3 },
+  { value: "1-week-before", label: "1 week before", daysBefore: 7 },
+  { value: "custom", label: "Custom date", daysBefore: null },
+]
+
 // --- SCHEMA ---
 const reminderSchema = z.object({
   id: z.string().optional(),
+  reminderPreset: z
+    .enum(["custom", "1-day-before", "3-days-before", "1-week-before"])
+    .optional(),
   reminderDate: z.date(),
   notificationProviderIds: z.array(z.string()).min(1, {
     message: "At least one notification provider is required",
@@ -235,6 +253,51 @@ export function SubscriptionForm({
     control: form.control,
     name: "reminders",
   })
+  const watchedStartDate = form.watch("startDate")
+  const watchedBillingFrequency = form.watch("billingFrequency")
+  const watchedReminders = form.watch("reminders") ?? []
+
+  function getPresetReminderDate(
+    preset: ReminderPreset,
+    startDate: Date,
+    billingFrequency: SubscriptionFormValues["billingFrequency"]
+  ) {
+    const presetConfig = REMINDER_PRESET_OPTIONS.find(
+      (option) => option.value === preset
+    )
+
+    if (!presetConfig || presetConfig.daysBefore === null) {
+      return null
+    }
+
+    const nextBillingDate = getNextBillingDateValue(startDate, billingFrequency)
+    return subDays(nextBillingDate, presetConfig.daysBefore)
+  }
+
+  function applyReminderPreset(index: number, preset: ReminderPreset) {
+    form.setValue(`reminders.${index}.reminderPreset`, preset, {
+      shouldDirty: true,
+      shouldTouch: true,
+    })
+
+    if (preset === "custom") {
+      return
+    }
+
+    const computedDate = getPresetReminderDate(
+      preset,
+      watchedStartDate,
+      watchedBillingFrequency
+    )
+
+    if (computedDate) {
+      form.setValue(`reminders.${index}.reminderDate`, computedDate, {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      })
+    }
+  }
 
   // Helper: find ID by name
   function findIdByName<T extends { id: string; name: string }>(
@@ -282,6 +345,7 @@ export function SubscriptionForm({
             reminders:
               data.reminders?.map((reminder) => ({
                 id: reminder.id,
+                reminderPreset: "custom",
                 reminderDate: new Date(reminder.date),
                 notificationProviderIds: findIdsByNames(
                   providers,
@@ -427,11 +491,47 @@ export function SubscriptionForm({
 
   // Add a new empty reminder
   const addReminder = () => {
+    const preset: ReminderPreset = "1-day-before"
     append({
-      reminderDate: new Date(),
+      reminderPreset: preset,
+      reminderDate:
+        getPresetReminderDate(
+          preset,
+          watchedStartDate,
+          watchedBillingFrequency
+        ) ?? new Date(),
       notificationProviderIds: [],
     })
   }
+
+  useEffect(() => {
+    watchedReminders.forEach((reminder, index) => {
+      if (!reminder?.reminderPreset || reminder.reminderPreset === "custom") {
+        return
+      }
+
+      const computedDate = getPresetReminderDate(
+        reminder.reminderPreset,
+        watchedStartDate,
+        watchedBillingFrequency
+      )
+
+      if (!computedDate) {
+        return
+      }
+
+      const currentDate = reminder.reminderDate
+      if (
+        !currentDate ||
+        currentDate.getTime() !== computedDate.getTime()
+      ) {
+        form.setValue(`reminders.${index}.reminderDate`, computedDate, {
+          shouldDirty: true,
+          shouldValidate: true,
+        })
+      }
+    })
+  }, [form, watchedBillingFrequency, watchedReminders, watchedStartDate])
 
   if (fetchingData) {
     return <div>Loading subscription data...</div>
@@ -702,6 +802,39 @@ export function SubscriptionForm({
                 <div className="grid gap-4 md:grid-cols-2">
                   <FormField
                     control={form.control}
+                    name={`reminders.${index}.reminderPreset`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Reminder Timing</FormLabel>
+                        <Select
+                          value={field.value ?? "custom"}
+                          onValueChange={(value) =>
+                            applyReminderPreset(index, value as ReminderPreset)
+                          }
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select reminder timing" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {REMINDER_PRESET_OPTIONS.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Presets are calculated from the next renewal date.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name={`reminders.${index}.reminderDate`}
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
@@ -712,6 +845,10 @@ export function SubscriptionForm({
                               <Button
                                 variant={"outline"}
                                 className="w-full pl-3 text-left font-normal"
+                                disabled={
+                                  (watchedReminders[index]?.reminderPreset ?? "custom") !==
+                                  "custom"
+                                }
                               >
                                 {field.value
                                   ? format(field.value, "PPP")
@@ -724,10 +861,26 @@ export function SubscriptionForm({
                             <Calendar
                               mode="single"
                               selected={field.value}
-                              onSelect={field.onChange}
+                              onSelect={(date) => {
+                                field.onChange(date)
+                                form.setValue(
+                                  `reminders.${index}.reminderPreset`,
+                                  "custom",
+                                  {
+                                    shouldDirty: true,
+                                    shouldTouch: true,
+                                  }
+                                )
+                              }}
                             />
                           </PopoverContent>
                         </Popover>
+                        {(watchedReminders[index]?.reminderPreset ?? "custom") !==
+                          "custom" && (
+                          <FormDescription>
+                            This date is auto-set from the selected preset.
+                          </FormDescription>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
