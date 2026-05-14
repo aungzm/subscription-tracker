@@ -72,19 +72,19 @@ A simple and effective tool to help you manage your app subscriptions. Track rec
 2. Install dependencies:
 
    ```bash
-   npm install
+   pnpm install
    ```
 
 3. Build the application:
 
    ```bash
-   npm run build
+   pnpm build
    ```
 
 4. Start the production server:
 
    ```bash
-   npm start
+   pnpm start
    ```
 
 5. The app will be accessible at `http://localhost:3000` by default.

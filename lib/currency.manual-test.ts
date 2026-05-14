@@ -1,5 +1,5 @@
 // Simple test file for currency conversion
-// Run with: npx tsx lib/currency.test.ts
+// Run with: pnpm exec tsx lib/currency.test.ts
 
 import { convertCurrency, normalizeToMonthlyCost, calculateTotalInCurrency } from './currency';
 
