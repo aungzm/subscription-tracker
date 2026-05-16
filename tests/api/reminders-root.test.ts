@@ -100,7 +100,7 @@ describe("API Integration Tests: Reminders Root", () => {
       expect(mockedPrisma.reminder.findMany).toHaveBeenCalledWith({
         where: { userId: aliceId },
         include: { subscription: true },
-        orderBy: { reminderDate: "asc" },
+        orderBy: { nextSendAt: "asc" },
       });
     });
   });
@@ -111,6 +111,8 @@ describe("API Integration Tests: Reminders Root", () => {
     const validBody = {
       subscriptionId: SUBSCRIPTION_IDS.NETFLIX,
       reminderDate: "2025-06-15T10:00:00.000Z",
+      reminderPreset: "custom",
+      nextSendAt: "2025-06-15T10:00:00.000Z",
       notificationProviderIds: [NOTIFICATION_PROVIDER_IDS.ALICE_EMAIL],
     };
 

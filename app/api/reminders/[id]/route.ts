@@ -48,7 +48,7 @@ export async function PUT(
     }
     const params = await context.params;
     const body = await request.json();
-    const { reminderDate, isRead } = body;
+    const { reminderDate, nextSendAt, isRead } = body;
 
     // Verify that the reminder belongs to the current user
     const existingReminder = await prisma.reminder.findFirst({
@@ -68,6 +68,12 @@ export async function PUT(
           reminderDate !== undefined
             ? new Date(reminderDate)
             : existingReminder.reminderDate,
+        nextSendAt:
+          nextSendAt !== undefined
+            ? nextSendAt
+              ? new Date(nextSendAt)
+              : null
+            : existingReminder.nextSendAt,
         isRead: isRead !== undefined ? isRead : existingReminder.isRead,
       },
       include: { subscription: true },

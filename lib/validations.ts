@@ -39,6 +39,12 @@ export const currencyUpdateSchema = z.object({
 
 // Subscription schemas
 export const billingFrequencyValues = ["weekly", "monthly", "yearly", "custom"] as const;
+export const reminderPresetValues = [
+  "custom",
+  "1-day-before",
+  "3-days-before",
+  "1-week-before",
+] as const;
 
 export const subscriptionCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -122,7 +128,9 @@ export const paymentMethodUpdateSchema = z.object({
 export const reminderCreateSchema = z.object({
   subscriptionId: z.string().min(1, "Subscription ID is required"),
   reminderDate: z.string().min(1, "Reminder date is required"),
-  notificationProviderIds: z.array(z.string()).min(1, "At least one notification provider is required"),
+  reminderPreset: z.enum(reminderPresetValues).optional().default("custom"),
+  nextSendAt: z.string().min(1, "Next send date is required"),
+  notificationProviderIds: z.array(z.string()).optional().default([]),
   id: z.string().optional(), // For updates
 });
 
@@ -130,22 +138,17 @@ export const reminderCreateSchema = z.object({
 export const notificationProviderCreateSchema = z
   .object({
     name: z.string().min(1, "Name is required"),
-    type: z.enum(["EMAIL", "PUSH"]),
-    smtpServer: z.string().nullable().optional(),
-    smtpPort: z.number().nullable().optional(),
-    smtpUser: z.string().nullable().optional(),
-    smtpPassword: z.string().nullable().optional(),
+    type: z.literal("PUSH"),
     webhookUrl: z.string().url().nullable().optional(),
     webhookSecret: z.string().nullable().optional(),
   })
   .refine(
     (data) => {
-      const hasSmtp = data.smtpServer || data.smtpPort || data.smtpUser || data.smtpPassword;
-      const hasWebhook = data.webhookUrl || data.webhookSecret;
-      return !(hasSmtp && hasWebhook);
+      return !!data.webhookUrl
     },
     {
-      message: "Provide either SMTP or Webhook configuration, not both",
+      message: "Webhook URL is required for webhook providers",
+      path: ["webhookUrl"],
     }
   );
 
@@ -153,12 +156,9 @@ export const notificationProviderUpdateSchema = notificationProviderCreateSchema
 
 // Notification test/send schema (for sending test notifications)
 export const sendNotificationSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1).optional().default("Notification"),
   type: z.enum(["EMAIL", "PUSH"]),
-  smtpServer: z.string().optional().nullable(),
-  smtpPort: z.number().optional().nullable(),
-  smtpUser: z.string().optional().nullable(),
-  smtpPassword: z.string().optional().nullable(),
+  email: z.string().email().optional().nullable(),
   webhookUrl: z.string().url().optional().nullable(),
   webhookSecret: z.string().optional().nullable(),
   message: z.object({

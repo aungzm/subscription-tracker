@@ -29,6 +29,13 @@ enum PaymentMethodType {
   OTHER
 }
 
+enum ReminderPreset {
+  CUSTOM
+  ONE_DAY_BEFORE
+  THREE_DAYS_BEFORE
+  ONE_WEEK_BEFORE
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -105,6 +112,12 @@ model Reminder {
   userId             String
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   reminderDate       DateTime
+  preset             ReminderPreset @default(CUSTOM)
+  daysBefore         Int?
+  nextSendAt         DateTime?
+  lastSentAt         DateTime?
+  lastErrorAt        DateTime?
+  lastErrorMessage   String?
   isRead             Boolean  @default(false)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

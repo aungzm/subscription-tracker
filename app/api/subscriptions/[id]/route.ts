@@ -31,6 +31,9 @@ export async function GET(
         select: {
         id: true,
         reminderDate: true,
+        preset: true,
+        daysBefore: true,
+        nextSendAt: true,
         notificationProviders: {
           select: { name: true }
         }
@@ -57,6 +60,9 @@ export async function GET(
       reminders: subscription.reminders.map(reminder => ({
         id: reminder.id,
         date: reminder.reminderDate,
+        preset: reminder.preset,
+        daysBefore: reminder.daysBefore,
+        nextSendAt: reminder.nextSendAt,
         providers: reminder.notificationProviders.map(provider => provider.name),
       })),
     });

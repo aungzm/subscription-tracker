@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { reminderCreateSchema, formatZodError } from "@/lib/validations";
+import { getDaysBeforeFromPreset, reminderPresetToDbValue } from "@/lib/reminder-schedule";
 
 // GET all reminders for the logged-in user
 export async function GET() {
@@ -14,7 +15,7 @@ export async function GET() {
     const reminders = await prisma.reminder.findMany({
       where: { userId: session.user.id },
       include: { subscription: true },
-      orderBy: { reminderDate: "asc" },
+      orderBy: { nextSendAt: "asc" },
     });
 
     return NextResponse.json(reminders);
@@ -42,7 +43,16 @@ export async function POST(request: Request) {
       return NextResponse.json(formatZodError(parseResult.error), { status: 400 })
     }
 
-    const { subscriptionId, reminderDate, notificationProviderIds, id } = parseResult.data
+    const {
+      subscriptionId,
+      reminderDate,
+      reminderPreset,
+      nextSendAt,
+      notificationProviderIds,
+      id,
+    } = parseResult.data
+    const daysBefore = getDaysBeforeFromPreset(reminderPreset)
+    const preset = reminderPresetToDbValue(reminderPreset)
 
     // Validate the subscription belongs to the current user
     const subscription = await prisma.subscription.findFirst({
@@ -70,6 +80,9 @@ export async function POST(request: Request) {
         },
         data: {
           reminderDate: new Date(reminderDate),
+          preset,
+          daysBefore,
+          nextSendAt: nextSendAt ? new Date(nextSendAt) : null,
           notificationProviders: {
             set: notificationProviderIds.map((id: string) => ({ id })),
           },
@@ -80,6 +93,9 @@ export async function POST(request: Request) {
       reminder = await prisma.reminder.create({
         data: {
           reminderDate: new Date(reminderDate),
+          preset,
+          daysBefore,
+          nextSendAt: nextSendAt ? new Date(nextSendAt) : null,
           userId: session.user.id,
           subscriptionId,
           notificationProviders: {
