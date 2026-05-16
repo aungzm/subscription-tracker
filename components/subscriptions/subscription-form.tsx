@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useFieldArray } from "react-hook-form"
 import * as z from "zod"
 import { CalendarIcon, Plus, Trash2 } from "lucide-react"
-import { format, subDays } from "date-fns"
+import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import type { Resolver } from "react-hook-form"
@@ -42,7 +42,12 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
-import { getNextBillingDateValue } from "@/lib/renewals"
+import {
+  detectReminderPreset,
+  getPresetReminderDate,
+  REMINDER_PRESET_OPTIONS,
+  type ReminderPreset,
+} from "@/lib/reminder-presets"
 
 // --- TYPES ---
 type NotificationProvider = { id: string; name: string }
@@ -56,8 +61,6 @@ type ReminderFormValue = {
   reminderDate: Date
   notificationProviderIds: string[]
 }
-
-type ReminderPreset = "custom" | "1-day-before" | "3-days-before" | "1-week-before"
 
 type SubscriptionFormValues = {
   name: string
@@ -92,17 +95,6 @@ type SubscriptionApiResponse = {
     providers: string[] // names
   }>
 }
-
-const REMINDER_PRESET_OPTIONS: Array<{
-  value: ReminderPreset
-  label: string
-  daysBefore: number | null
-}> = [
-  { value: "1-day-before", label: "1 day before", daysBefore: 1 },
-  { value: "3-days-before", label: "3 days before", daysBefore: 3 },
-  { value: "1-week-before", label: "1 week before", daysBefore: 7 },
-  { value: "custom", label: "Custom date", daysBefore: null },
-]
 
 // --- SCHEMA ---
 const reminderSchema = z.object({
@@ -257,23 +249,6 @@ export function SubscriptionForm({
   const watchedBillingFrequency = form.watch("billingFrequency")
   const watchedReminders = form.watch("reminders") ?? []
 
-  function getPresetReminderDate(
-    preset: ReminderPreset,
-    startDate: Date,
-    billingFrequency: SubscriptionFormValues["billingFrequency"]
-  ) {
-    const presetConfig = REMINDER_PRESET_OPTIONS.find(
-      (option) => option.value === preset
-    )
-
-    if (!presetConfig || presetConfig.daysBefore === null) {
-      return null
-    }
-
-    const nextBillingDate = getNextBillingDateValue(startDate, billingFrequency)
-    return subDays(nextBillingDate, presetConfig.daysBefore)
-  }
-
   function applyReminderPreset(index: number, preset: ReminderPreset) {
     form.setValue(`reminders.${index}.reminderPreset`, preset, {
       shouldDirty: true,
@@ -345,7 +320,11 @@ export function SubscriptionForm({
             reminders:
               data.reminders?.map((reminder) => ({
                 id: reminder.id,
-                reminderPreset: "custom",
+                reminderPreset: detectReminderPreset(
+                  new Date(reminder.date),
+                  new Date(data.startDate),
+                  data.billingFrequency
+                ),
                 reminderDate: new Date(reminder.date),
                 notificationProviderIds: findIdsByNames(
                   providers,
