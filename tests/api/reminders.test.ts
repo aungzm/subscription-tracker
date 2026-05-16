@@ -60,7 +60,7 @@ describe("API Integration Tests: /api/reminders/[id]", () => {
     it("returns 401 when not authenticated", async () => {
       mockedAuth.mockResolvedValueOnce(null);
       const req = new Request(`http://localhost/api/reminders/${netflixReminderId}`);
-      const ctx = { params: { id: netflixReminderId } };
+      const ctx = { params: Promise.resolve({ id: netflixReminderId }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -75,7 +75,7 @@ describe("API Integration Tests: /api/reminders/[id]", () => {
       mockedPrisma.reminder.findFirst.mockResolvedValueOnce(null);
 
       const req = new Request(`http://localhost/api/reminders/nonexistent`);
-      const ctx = { params: { id: "nonexistent" } };
+      const ctx = { params: Promise.resolve({ id: "nonexistent" }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -90,7 +90,7 @@ describe("API Integration Tests: /api/reminders/[id]", () => {
       mockedPrisma.reminder.findFirst.mockResolvedValueOnce(null);
 
       const req = new Request(`http://localhost/api/reminders/${spotifyReminderId}`);
-      const ctx = { params: { id: spotifyReminderId } };
+      const ctx = { params: Promise.resolve({ id: spotifyReminderId }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -105,7 +105,7 @@ describe("API Integration Tests: /api/reminders/[id]", () => {
       mockedPrisma.reminder.findFirst.mockRejectedValueOnce(new Error("DB failure"));
 
       const req = new Request(`http://localhost/api/reminders/${netflixReminderId}`);
-      const ctx = { params: { id: netflixReminderId } };
+      const ctx = { params: Promise.resolve({ id: netflixReminderId }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -132,7 +132,7 @@ describe("API Integration Tests: /api/reminders/[id]", () => {
       mockedPrisma.reminder.findFirst.mockResolvedValueOnce(reminder as any);
 
       const req = new Request(`http://localhost/api/reminders/${netflixReminderId}`);
-      const ctx = { params: { id: netflixReminderId } };
+      const ctx = { params: Promise.resolve({ id: netflixReminderId }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<ReminderWithSubscription>;
 
@@ -341,7 +341,7 @@ describe("API Integration Tests: /api/reminders/[id]", () => {
     it("returns 401 when not authenticated", async () => {
       mockedAuth.mockResolvedValueOnce(null);
       const req = new Request(`http://localhost/api/reminders/${netflixReminderId}`);
-      const ctx = { params: { id: netflixReminderId } };
+      const ctx = { params: Promise.resolve({ id: netflixReminderId }) };
 
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -356,7 +356,7 @@ describe("API Integration Tests: /api/reminders/[id]", () => {
       mockedPrisma.reminder.findFirst.mockResolvedValueOnce(null);
 
       const req = new Request(`http://localhost/api/reminders/nonexistent`);
-      const ctx = { params: { id: "nonexistent" } };
+      const ctx = { params: Promise.resolve({ id: "nonexistent" }) };
 
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -371,7 +371,7 @@ describe("API Integration Tests: /api/reminders/[id]", () => {
       mockedPrisma.reminder.findFirst.mockResolvedValueOnce(null);
 
       const req = new Request(`http://localhost/api/reminders/${spotifyReminderId}`);
-      const ctx = { params: { id: spotifyReminderId } };
+      const ctx = { params: Promise.resolve({ id: spotifyReminderId }) };
 
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -388,7 +388,7 @@ describe("API Integration Tests: /api/reminders/[id]", () => {
       mockedPrisma.reminder.delete.mockRejectedValueOnce(new Error("Delete failure"));
 
       const req = new Request(`http://localhost/api/reminders/${netflixReminderId}`);
-      const ctx = { params: { id: netflixReminderId } };
+      const ctx = { params: Promise.resolve({ id: netflixReminderId }) };
 
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -405,7 +405,7 @@ describe("API Integration Tests: /api/reminders/[id]", () => {
       mockedPrisma.reminder.delete.mockResolvedValueOnce(existingReminder);
 
       const req = new Request(`http://localhost/api/reminders/${netflixReminderId}`);
-      const ctx = { params: { id: netflixReminderId } };
+      const ctx = { params: Promise.resolve({ id: netflixReminderId }) };
 
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ message: string }>;
 

@@ -232,7 +232,7 @@ describe("API Integration Tests: Payment Methods", () => {
     it("returns 401 when not authenticated", async () => {
       mockedAuth.mockResolvedValueOnce(null);
       const req = new Request(`http://localhost/api/payment-methods/${visaPaymentId}`);
-      const ctx = { params: { id: visaPaymentId } };
+      const ctx = { params: Promise.resolve({ id: visaPaymentId }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -247,7 +247,7 @@ describe("API Integration Tests: Payment Methods", () => {
       mockedPrisma.paymentMethod.findFirst.mockResolvedValueOnce(null);
 
       const req = new Request(`http://localhost/api/payment-methods/nonexistent`);
-      const ctx = { params: { id: "nonexistent" } };
+      const ctx = { params: Promise.resolve({ id: "nonexistent" }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -263,7 +263,7 @@ describe("API Integration Tests: Payment Methods", () => {
       mockedPrisma.paymentMethod.findFirst.mockResolvedValueOnce(null);
 
       const req = new Request(`http://localhost/api/payment-methods/${mastercardPaymentId}`);
-      const ctx = { params: { id: mastercardPaymentId } };
+      const ctx = { params: Promise.resolve({ id: mastercardPaymentId }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -278,7 +278,7 @@ describe("API Integration Tests: Payment Methods", () => {
       mockedPrisma.paymentMethod.findFirst.mockRejectedValueOnce(new Error("DB failure"));
 
       const req = new Request(`http://localhost/api/payment-methods/${visaPaymentId}`);
-      const ctx = { params: { id: visaPaymentId } };
+      const ctx = { params: Promise.resolve({ id: visaPaymentId }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -299,7 +299,7 @@ describe("API Integration Tests: Payment Methods", () => {
       mockedPrisma.paymentMethod.findFirst.mockResolvedValueOnce(payment);
 
       const req = new Request(`http://localhost/api/payment-methods/${visaPaymentId}`);
-      const ctx = { params: { id: visaPaymentId } };
+      const ctx = { params: Promise.resolve({ id: visaPaymentId }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<PaymentMethod>;
 
@@ -495,7 +495,7 @@ describe("API Integration Tests: Payment Methods", () => {
     it("returns 401 when not authenticated", async () => {
       mockedAuth.mockResolvedValueOnce(null);
       const req = new Request(`http://localhost/api/payment-methods/${visaPaymentId}`);
-      const ctx = { params: { id: visaPaymentId } };
+      const ctx = { params: Promise.resolve({ id: visaPaymentId }) };
 
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -510,7 +510,7 @@ describe("API Integration Tests: Payment Methods", () => {
       mockedPrisma.paymentMethod.findFirst.mockResolvedValueOnce(null);
 
       const req = new Request(`http://localhost/api/payment-methods/nonexistent`);
-      const ctx = { params: { id: "nonexistent" } };
+      const ctx = { params: Promise.resolve({ id: "nonexistent" }) };
 
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -525,7 +525,7 @@ describe("API Integration Tests: Payment Methods", () => {
       mockedPrisma.paymentMethod.findFirst.mockResolvedValueOnce(null);
 
       const req = new Request(`http://localhost/api/payment-methods/${mastercardPaymentId}`);
-      const ctx = { params: { id: mastercardPaymentId } };
+      const ctx = { params: Promise.resolve({ id: mastercardPaymentId }) };
 
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -542,7 +542,7 @@ describe("API Integration Tests: Payment Methods", () => {
       mockedPrisma.paymentMethod.delete.mockRejectedValueOnce(new Error("Delete failure"));
 
       const req = new Request(`http://localhost/api/payment-methods/${visaPaymentId}`);
-      const ctx = { params: { id: visaPaymentId } };
+      const ctx = { params: Promise.resolve({ id: visaPaymentId }) };
 
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -559,7 +559,7 @@ describe("API Integration Tests: Payment Methods", () => {
       mockedPrisma.paymentMethod.delete.mockResolvedValueOnce(existingPayment);
 
       const req = new Request(`http://localhost/api/payment-methods/${visaPaymentId}`);
-      const ctx = { params: { id: visaPaymentId } };
+      const ctx = { params: Promise.resolve({ id: visaPaymentId }) };
 
       const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ message: string }>;
 

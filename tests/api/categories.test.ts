@@ -221,7 +221,7 @@ describe("API Integration Tests: Categories", () => {
     it("returns 401 when not authenticated", async () => {
       mockedAuth.mockResolvedValueOnce(null);
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
-      const ctx = { params: { id: streamingCatId } };
+      const ctx = { params: Promise.resolve({ id: streamingCatId }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -236,7 +236,7 @@ describe("API Integration Tests: Categories", () => {
       mockedPrisma.category.findFirst.mockResolvedValueOnce(null);
 
       const req = new Request(`http://localhost/api/categories/nonexistent`);
-      const ctx = { params: { id: "nonexistent" } };
+      const ctx = { params: Promise.resolve({ id: "nonexistent" }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -251,7 +251,7 @@ describe("API Integration Tests: Categories", () => {
       mockedPrisma.category.findFirst.mockRejectedValueOnce(new Error("DB failure"));
 
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
-      const ctx = { params: { id: streamingCatId } };
+      const ctx = { params: Promise.resolve({ id: streamingCatId }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<{ error: string }>;
 
@@ -270,7 +270,7 @@ describe("API Integration Tests: Categories", () => {
       mockedPrisma.category.findFirst.mockResolvedValueOnce(cat);
 
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
-      const ctx = { params: { id: streamingCatId } };
+      const ctx = { params: Promise.resolve({ id: streamingCatId }) };
 
       const res = (await GET(req, ctx)) as unknown as ApiResponse<Category>;
 
