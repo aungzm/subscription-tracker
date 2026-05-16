@@ -48,6 +48,10 @@ import {
   REMINDER_PRESET_OPTIONS,
   type ReminderPreset,
 } from "@/lib/reminder-presets"
+import {
+  dbValueToReminderPreset,
+  getReminderNextSendAt,
+} from "@/lib/reminder-schedule"
 
 // --- TYPES ---
 type NotificationProvider = { id: string; name: string }
@@ -59,6 +63,7 @@ type ReminderFormValue = {
   id?: string
   reminderPreset?: ReminderPreset
   reminderDate: Date
+  nextSendAt?: Date | null
   notificationProviderIds: string[]
 }
 
@@ -92,6 +97,8 @@ type SubscriptionApiResponse = {
   reminders: Array<{
     id: string
     date: string | Date
+    preset?: string | null
+    nextSendAt?: string | Date | null
     providers: string[] // names
   }>
 }
@@ -103,9 +110,8 @@ const reminderSchema = z.object({
     .enum(["custom", "1-day-before", "3-days-before", "1-week-before"])
     .optional(),
   reminderDate: z.date(),
-  notificationProviderIds: z.array(z.string()).min(1, {
-    message: "At least one notification provider is required",
-  }),
+  nextSendAt: z.date().optional().nullable(),
+  notificationProviderIds: z.array(z.string()),
 })
 
 const formSchema = z.object({
@@ -271,6 +277,11 @@ export function SubscriptionForm({
         shouldTouch: true,
         shouldValidate: true,
       })
+      form.setValue(`reminders.${index}.nextSendAt`, computedDate, {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      })
     }
   }
 
@@ -320,12 +331,17 @@ export function SubscriptionForm({
             reminders:
               data.reminders?.map((reminder) => ({
                 id: reminder.id,
-                reminderPreset: detectReminderPreset(
-                  new Date(reminder.date),
-                  new Date(data.startDate),
-                  data.billingFrequency
-                ),
+                reminderPreset: reminder.preset
+                  ? dbValueToReminderPreset(reminder.preset)
+                  : detectReminderPreset(
+                      new Date(reminder.date),
+                      new Date(data.startDate),
+                      data.billingFrequency
+                    ),
                 reminderDate: new Date(reminder.date),
+                nextSendAt: reminder.nextSendAt
+                  ? new Date(reminder.nextSendAt)
+                  : null,
                 notificationProviderIds: findIdsByNames(
                   providers,
                   reminder.providers
@@ -434,6 +450,13 @@ export function SubscriptionForm({
             const reminderPayload = {
               subscriptionId: newSubscriptionId,
               reminderDate: reminder.reminderDate,
+              reminderPreset: reminder.reminderPreset ?? "custom",
+              nextSendAt: getReminderNextSendAt({
+                reminderPreset: reminder.reminderPreset ?? "custom",
+                reminderDate: reminder.reminderDate,
+                startDate: values.startDate,
+                billingFrequency: values.billingFrequency,
+              }),
               notificationProviderIds: reminder.notificationProviderIds,
               id: reminder.id, // Include ID if it's an existing reminder
             }
@@ -479,6 +502,12 @@ export function SubscriptionForm({
           watchedStartDate,
           watchedBillingFrequency
         ) ?? new Date(),
+      nextSendAt:
+        getPresetReminderDate(
+          preset,
+          watchedStartDate,
+          watchedBillingFrequency
+        ) ?? new Date(),
       notificationProviderIds: [],
     })
   }
@@ -505,6 +534,10 @@ export function SubscriptionForm({
         currentDate.getTime() !== computedDate.getTime()
       ) {
         form.setValue(`reminders.${index}.reminderDate`, computedDate, {
+          shouldDirty: true,
+          shouldValidate: true,
+        })
+        form.setValue(`reminders.${index}.nextSendAt`, computedDate, {
           shouldDirty: true,
           shouldValidate: true,
         })
@@ -850,6 +883,14 @@ export function SubscriptionForm({
                                     shouldTouch: true,
                                   }
                                 )
+                                form.setValue(
+                                  `reminders.${index}.nextSendAt`,
+                                  date ?? null,
+                                  {
+                                    shouldDirty: true,
+                                    shouldTouch: true,
+                                  }
+                                )
                               }}
                             />
                           </PopoverContent>
@@ -894,7 +935,7 @@ export function SubscriptionForm({
                           </MultiSelect>
                         </FormControl>
                         <FormDescription>
-                          Select at least one notification provider
+                          Optional webhook destinations for this reminder
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

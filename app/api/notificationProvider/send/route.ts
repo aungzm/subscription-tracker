@@ -20,7 +20,18 @@ export async function POST(request: Request) {
     const provider = parseResult.data;
 
     if (provider.type === "EMAIL") {
-      await sendEmail(provider);
+      if (!provider.email) {
+        return NextResponse.json(
+          { message: "Email address is required for email notifications" },
+          { status: 400 }
+        );
+      }
+
+      await sendEmail({
+        type: "EMAIL",
+        to: provider.email,
+        message: provider.message,
+      });
     } else if (provider.type === "PUSH") {
       if (!provider.webhookUrl) {
         return NextResponse.json(
@@ -28,7 +39,12 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      await sendWebhook(provider);
+      await sendWebhook({
+        type: "PUSH",
+        webhookUrl: provider.webhookUrl,
+        webhookSecret: provider.webhookSecret,
+        message: provider.message,
+      });
     } else {
       return NextResponse.json(
         { message: "Unknown provider type" },

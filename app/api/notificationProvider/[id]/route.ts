@@ -60,10 +60,10 @@ export async function PUT(
     const data = {
       name: validatedData.name,
       type: validatedData.type,
-      smtpServer: validatedData.smtpServer !== undefined ? validatedData.smtpServer : null,
-      smtpPort: validatedData.smtpPort !== undefined ? validatedData.smtpPort : null,
-      smtpUser: validatedData.smtpUser !== undefined ? validatedData.smtpUser : null,
-      smtpPassword: validatedData.smtpPassword !== undefined ? validatedData.smtpPassword : null,
+      smtpServer: null,
+      smtpPort: null,
+      smtpUser: null,
+      smtpPassword: null,
       webhookUrl: validatedData.webhookUrl !== undefined ? validatedData.webhookUrl : null,
       webhookSecret: validatedData.webhookSecret !== undefined ? validatedData.webhookSecret : null,
     };

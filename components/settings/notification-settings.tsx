@@ -1,7 +1,7 @@
-"use client";
+"use client"
 
-import { useEffect, useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState, useTransition } from "react"
+import { Button } from "@/components/ui/button"
 import {
   Form,
   FormControl,
@@ -10,8 +10,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
 import {
   Card,
   CardContent,
@@ -19,20 +19,12 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { toast } from "@/components/ui/use-toast";
-import { useForm } from "react-hook-form";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash } from "lucide-react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+} from "@/components/ui/card"
+import { toast } from "@/components/ui/use-toast"
+import { useForm } from "react-hook-form"
+import { Plus, Trash } from "lucide-react"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import {
   Dialog,
   DialogContent,
@@ -40,101 +32,86 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Skeleton } from "@/components/ui/skeleton";
+} from "@/components/ui/dialog"
+import { Skeleton } from "@/components/ui/skeleton"
 
 const providerSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1, "Name is required"),
-  type: z.enum(["EMAIL", "PUSH"]),
-  // SMTP fields
-  smtpServer: z.string().optional().nullable(),
-  smtpPort: z
-    .preprocess(
-      (val) => (val === "" || val == null ? null : Number(val)),
-      z.number().optional().nullable()
-    ),
-  smtpUser: z.string().optional().nullable(),
-  smtpPassword: z.string().optional().nullable(),
-  // Webhook fields
-  webhookUrl: z.string().url({ message: "Invalid URL" }).optional().nullable(),
+  type: z.literal("PUSH"),
+  webhookUrl: z.string().url({ message: "Invalid URL" }),
   webhookSecret: z.string().optional().nullable(),
-});
+})
 
-type Provider = z.infer<typeof providerSchema>;
+type Provider = z.infer<typeof providerSchema>
 
 export function NotificationSettings() {
-  const [isPending, startTransition] = useTransition();
-  const [isLoading, setIsLoading] = useState(true);
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [editingProvider, setEditingProvider] = useState<Provider | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isPending, startTransition] = useTransition()
+  const [isLoading, setIsLoading] = useState(true)
+  const [providers, setProviders] = useState<Provider[]>([])
+  const [editingProvider, setEditingProvider] = useState<Provider | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const form = useForm<Provider>({
-    // zodResolver type inference doesn't handle preprocess well, cast needed
-    resolver: zodResolver(providerSchema) as unknown as import("react-hook-form").Resolver<Provider>,
+    resolver:
+      zodResolver(providerSchema) as unknown as import("react-hook-form").Resolver<Provider>,
     defaultValues: {
       name: "",
-      type: "EMAIL",
-      smtpServer: null,
-      smtpPort: null,
-      smtpUser: null,
-      smtpPassword: null,
-      webhookUrl: null,
+      type: "PUSH",
+      webhookUrl: "",
       webhookSecret: null,
     },
-  });
-
-  const currentProviderType = form.watch("type");
+  })
 
   useEffect(() => {
-    fetchProviders();
-  }, []);
+    fetchProviders()
+  }, [])
 
   useEffect(() => {
     if (editingProvider) {
-      form.reset(editingProvider);
-      setIsDialogOpen(true);
+      form.reset(editingProvider)
+      setIsDialogOpen(true)
     } else {
-      resetForm();
+      resetForm()
     }
-  }, [editingProvider]);
+  }, [editingProvider, form])
 
   async function fetchProviders() {
     try {
-      const response = await fetch("/api/notificationProvider");
-      if (!response.ok) throw new Error("Failed to fetch notification providers");
-      const data = await response.json();
-      setProviders(data);
+      const response = await fetch("/api/notificationProvider")
+      if (!response.ok) {
+        throw new Error("Failed to fetch notification providers")
+      }
+
+      const data = await response.json()
+      setProviders(data)
     } catch (error) {
-      console.error("Fetch Providers Error:", error);
+      console.error("Fetch Providers Error:", error)
       toast({
         title: "Error Loading Providers",
         description: "Could not load notification providers.",
         variant: "destructive",
-      });
+      })
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   }
 
   function onSubmit(values: Provider) {
     startTransition(async () => {
       try {
-        let url = "/api/notificationProvider";
-        let method = "POST";
+        let url = "/api/notificationProvider"
+        let method = "POST"
 
         if (editingProvider?.id) {
-          url += `/${editingProvider.id}`;
-          method = "PUT";
+          url += `/${editingProvider.id}`
+          method = "PUT"
         }
 
-        const payload: Record<string, string | number | null | undefined> = { ...values };
-        Object.keys(payload).forEach((key) => {
-          if (payload[key] === "") {
-            payload[key] = null;
-          }
-        });
+        const payload = {
+          ...values,
+          webhookSecret: values.webhookSecret || null,
+        }
 
         const response = await fetch(url, {
           method,
@@ -142,71 +119,77 @@ export function NotificationSettings() {
           headers: {
             "Content-Type": "application/json",
           },
-        });
+        })
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({
             message: "Failed to save notification provider",
-          }));
+          }))
           throw new Error(
             errorData.message || "Failed to save notification provider"
-          );
+          )
         }
 
         toast({
           title: "Success",
           description: editingProvider
-            ? "Provider updated successfully"
-            : "Provider created successfully",
-        });
+            ? "Webhook updated successfully"
+            : "Webhook created successfully",
+        })
 
-        fetchProviders();
-        resetForm();
-        setIsDialogOpen(false);
+        fetchProviders()
+        resetForm()
+        setIsDialogOpen(false)
       } catch (error) {
-        console.error("Submit Error:", error);
+        console.error("Submit Error:", error)
         toast({
           title: "Error Saving Provider",
-          description: error instanceof Error ? error.message : "Something went wrong. Please try again.",
+          description:
+            error instanceof Error
+              ? error.message
+              : "Something went wrong. Please try again.",
           variant: "destructive",
-        });
+        })
       }
-    });
+    })
   }
 
   async function testProvider(values: Provider) {
-    // Add test message
     const testPayload = {
       ...values,
       message: {
         subject: "Test Notification",
-        body: "This is a test message from Subscription Tracker"
-      }
-    };
+        body: "This is a test message from Subscription Tracker",
+      },
+    }
+
     try {
       const response = await fetch("/api/notificationProvider/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(testPayload),
-      });
+      })
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({
           message: "Failed to test provider",
-        }));
-        throw new Error(errorData.message || "Failed to test provider");
+        }))
+        throw new Error(errorData.message || "Failed to test provider")
       }
 
       toast({
         title: "Test Successful",
-        description: "Provider test succeeded.",
-      });
+        description: "Webhook test succeeded.",
+      })
     } catch (error) {
       toast({
         title: "Test Failed",
-        description: error instanceof Error ? error.message : "Could not test the provider.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Could not test the provider.",
         variant: "destructive",
-      });
+      })
     }
   }
 
@@ -215,64 +198,54 @@ export function NotificationSettings() {
       try {
         const response = await fetch(`/api/notificationProvider/${id}`, {
           method: "DELETE",
-        });
+        })
 
-        if (!response.ok)
-          throw new Error("Failed to delete notification provider");
+        if (!response.ok) {
+          throw new Error("Failed to delete notification provider")
+        }
 
         toast({
           title: "Success",
-          description: "Notification provider deleted successfully",
-        });
+          description: "Webhook deleted successfully",
+        })
 
-        fetchProviders();
+        fetchProviders()
         if (editingProvider?.id === id) {
-          resetForm();
-          setIsDialogOpen(false);
+          resetForm()
+          setIsDialogOpen(false)
         }
       } catch (error) {
-        console.error("Delete Error:", error);
+        console.error("Delete Error:", error)
         toast({
           title: "Error Deleting Provider",
           description: "Failed to delete the provider",
           variant: "destructive",
-        });
+        })
       }
-    });
+    })
   }
 
   function resetForm() {
     form.reset({
       name: "",
-      type: "EMAIL",
-      smtpServer: null,
-      smtpPort: null,
-      smtpUser: null,
-      smtpPassword: null,
-      webhookUrl: null,
+      type: "PUSH",
+      webhookUrl: "",
       webhookSecret: null,
-    });
-    setEditingProvider(null);
-  }
-
-  function handleDialogClose() {
-    setIsDialogOpen(false);
-    if (editingProvider) {
-      resetForm();
-    }
+    })
+    setEditingProvider(null)
   }
 
   if (isLoading) {
     return (
       <div className="space-y-8">
-        <div className="flex justify-between items-center mb-4">
+        <div className="mb-4 flex items-center justify-between">
           <Skeleton className="h-10 w-[140px]" />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i}>
               <CardHeader>
-                <div className="flex justify-between items-start">
+                <div className="flex items-start justify-between">
                   <Skeleton className="h-6 w-[120px]" />
                   <Skeleton className="h-8 w-8" />
                 </div>
@@ -289,15 +262,15 @@ export function NotificationSettings() {
           ))}
         </div>
       </div>
-    );
+    )
   }
 
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <Button onClick={() => setIsDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Provider
+          <Plus className="mr-2 h-4 w-4" />
+          Add Webhook
         </Button>
       </div>
 
@@ -306,7 +279,7 @@ export function NotificationSettings() {
           {providers.map((provider) => (
             <Card key={provider.id}>
               <CardHeader>
-                <div className="flex justify-between items-start">
+                <div className="flex items-start justify-between">
                   <CardTitle>{provider.name}</CardTitle>
                   <Button
                     variant="ghost"
@@ -318,16 +291,10 @@ export function NotificationSettings() {
                     <Trash className="h-4 w-4" />
                   </Button>
                 </div>
-                <CardDescription>Type: {provider.type}</CardDescription>
+                <CardDescription>Optional webhook destination</CardDescription>
               </CardHeader>
-              <CardContent className="text-sm space-y-1">
-                {provider.smtpServer && (
-                  <p>
-                    SMTP: {provider.smtpServer}:{provider.smtpPort || "N/A"}
-                  </p>
-                )}
-                {provider.smtpUser && <p>SMTP User: {provider.smtpUser}</p>}
-                {provider.webhookUrl && <p>Webhook: {provider.webhookUrl}</p>}
+              <CardContent className="space-y-1 text-sm">
+                <p>Webhook: {provider.webhookUrl}</p>
               </CardContent>
               <CardFooter>
                 <Button
@@ -343,7 +310,8 @@ export function NotificationSettings() {
         </div>
       ) : (
         <p className="text-muted-foreground">
-          No notification providers found. Add one by clicking the "Add Provider" button.
+          No webhook providers found. Email reminders are handled automatically
+          through the app-wide Resend integration.
         </p>
       )}
 
@@ -351,10 +319,12 @@ export function NotificationSettings() {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
-              {editingProvider ? "Edit Provider" : "Add New Provider"}
+              {editingProvider ? "Edit Webhook" : "Add New Webhook"}
             </DialogTitle>
             <DialogDescription>
-              Configure email (SMTP) or push (Webhook) providers.
+              Email reminders use the app-wide Resend configuration. Add webhooks
+              here if you also want reminder fan-out to Discord, Slack gateways,
+              or other webhook endpoints.
             </DialogDescription>
           </DialogHeader>
 
@@ -366,9 +336,9 @@ export function NotificationSettings() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Provider Name</FormLabel>
+                      <FormLabel>Webhook Name</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="e.g., My Gmail SMTP" />
+                        <Input {...field} placeholder="Discord billing alerts" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -381,184 +351,65 @@ export function NotificationSettings() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Provider Type</FormLabel>
-                      <Select
-                        value={field.value}
-                        onValueChange={(value: "EMAIL" | "PUSH") => {
-                          field.onChange(value);
-                          if (value === "EMAIL") {
-                            form.setValue("webhookUrl", null);
-                            form.setValue("webhookSecret", null);
-                          } else {
-                            form.setValue("smtpServer", null);
-                            form.setValue("smtpPort", null);
-                            form.setValue("smtpUser", null);
-                            form.setValue("smtpPassword", null);
-                          }
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="EMAIL">Email (SMTP)</SelectItem>
-                          <SelectItem value="PUSH">Push (Webhook)</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <Input {...field} disabled />
+                      </FormControl>
+                      <FormDescription>
+                        Webhooks are the only user-managed reminder providers.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
 
-              <Tabs value={currentProviderType} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger
-                    value="EMAIL"
-                    disabled={currentProviderType !== "EMAIL"}
-                  >
-                    SMTP Configuration
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="PUSH"
-                    disabled={currentProviderType !== "PUSH"}
-                  >
-                    Webhook Configuration
-                  </TabsTrigger>
-                </TabsList>
+              <div className="space-y-4 rounded-md border p-4">
+                <FormField
+                  control={form.control}
+                  name="webhookUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Webhook URL</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          placeholder="https://your-service.com/webhook"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                <TabsContent
-                  value="EMAIL"
-                  className="mt-4 space-y-4 border p-4 rounded-md"
-                >
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    Required for Email Notifications
-                  </h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="smtpServer"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SMTP Server</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value ?? ""}
-                              placeholder="smtp.example.com"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="smtpPort"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SMTP Port</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value ?? ""}
-                              placeholder="587"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="smtpUser"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SMTP User</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value ?? ""}
-                              placeholder="user@example.com"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="smtpPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>SMTP Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value ?? ""}
-                              type="password"
-                              placeholder="••••••••"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </TabsContent>
-
-                <TabsContent
-                  value="PUSH"
-                  className="mt-4 space-y-4 border p-4 rounded-md"
-                >
-                  <h3 className="text-sm font-medium text-muted-foreground">
-                    Required for Push Notifications
-                  </h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <FormField
-                      control={form.control}
-                      name="webhookUrl"
-                      render={({ field }) => (
-                        <FormItem className="col-span-2">
-                          <FormLabel>Webhook URL</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value ?? ""}
-                              placeholder="https://your-service.com/webhook"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="webhookSecret"
-                      render={({ field }) => (
-                        <FormItem className="col-span-2">
-                          <FormLabel>Webhook Secret (Optional)</FormLabel>
-                          <FormControl>
-                            <Input
-                              {...field}
-                              value={field.value ?? ""}
-                              placeholder="Optional secret for verification"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </TabsContent>
-              </Tabs>
+                <FormField
+                  control={form.control}
+                  name="webhookSecret"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Webhook Secret (Optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ""}
+                          placeholder="Optional secret for verification"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <DialogFooter>
                 <Button
                   type="button"
                   variant="destructive"
-                  onClick={handleDialogClose}
+                  onClick={() => {
+                    setIsDialogOpen(false)
+                    if (editingProvider) {
+                      resetForm()
+                    }
+                  }}
                   disabled={isPending}
                 >
                   Cancel
@@ -567,21 +418,22 @@ export function NotificationSettings() {
                   type="button"
                   variant="outline"
                   onClick={async () => {
-                    const isValid = await form.trigger();
-                    if (!isValid) return;
-                    const values = form.getValues();
-                    testProvider(values);
+                    const isValid = await form.trigger()
+                    if (!isValid) {
+                      return
+                    }
+                    await testProvider(form.getValues())
                   }}
                   disabled={isPending}
                 >
-                  Test Provider
+                  Test Webhook
                 </Button>
                 <Button type="submit" disabled={isPending}>
                   {isPending
                     ? "Saving..."
                     : editingProvider
-                      ? "Update Provider"
-                      : "Add Provider"}
+                      ? "Update Webhook"
+                      : "Add Webhook"}
                 </Button>
               </DialogFooter>
             </form>
@@ -589,5 +441,5 @@ export function NotificationSettings() {
         </DialogContent>
       </Dialog>
     </div>
-  );
+  )
 }
