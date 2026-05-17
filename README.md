@@ -36,31 +36,48 @@ A simple and effective tool to help you manage your app subscriptions. Track rec
   Monitor how your subscription spending evolves over time with historical data tracking.
 
 * **Notification System**
-  Get notified of upcoming renewals via email or webhooks. Stay informed and avoid unexpected charges.
+  Get notified of upcoming renewals through app-wide Resend email delivery and optional user-configured webhooks.
+
+* **Recurring Reminder Presets**
+  Configure reminders like `1 day before`, `3 days before`, and `1 week before`, with automatic rescheduling for recurring subscriptions.
+
+* **Framework-Agnostic Reminder Scheduling**
+  Run the same reminder dispatch pipeline on Vercel Cron or from your own Docker-hosted scheduler/worker.
 
 * **Docker Support**
   Host the application yourself using Docker. Refer to the `docker-compose.yml` file for setup instructions.
 
 ## Getting Started
 
-### Running with Docker
+### Environment Variables
 
-1. Clone the repository:
+Create a `.env` file before running the app locally.
 
-   ```bash
-   git clone https://github.com/aungzm/subscription-tracker.git
-   cd your-repo
-   ```
+Required:
 
-2. Start the app with Docker:
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/subscription_tracker"
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="replace-with-a-long-random-secret"
+RESEND_API_KEY="re_xxxxxxxxxxxxxxxxx"
+EMAIL_FROM="Subscription Tracker <no-reply@example.com>"
+CRON_SECRET="replace-with-a-long-random-secret"
+```
 
-   ```bash
-   docker-compose up -d
-   ```
+Optional:
 
-3. Access the application via `http://localhost:PORT`
+```env
+NEXT_PUBLIC_DEMO_MODE=false
+```
 
-### Running with Next.js (Production Build)
+Notes:
+
+* `RESEND_API_KEY` is used for all email reminder delivery.
+* `EMAIL_FROM` must use a sender/domain configured in Resend.
+* `CRON_SECRET` protects the reminder dispatch endpoint at `/api/cron/reminders`.
+* Do not commit real credentials or production secrets to source control.
+
+### Running Locally with Next.js
 
 1. Clone the repository:
 
@@ -73,6 +90,42 @@ A simple and effective tool to help you manage your app subscriptions. Track rec
 
    ```bash
    pnpm install
+   ```
+
+3. Sync Prisma schema to your database:
+
+   ```bash
+   npx prisma db push
+   npx prisma generate
+   ```
+
+4. Optionally seed demo data:
+
+   ```bash
+   pnpm db:seed
+   ```
+
+5. Start the development server:
+
+   ```bash
+   pnpm dev
+   ```
+
+6. The app will be available at `http://localhost:3000`.
+
+### Running a Production Build
+
+1. Install dependencies:
+
+   ```bash
+   pnpm install
+   ```
+
+2. Push the Prisma schema and generate the client:
+
+   ```bash
+   npx prisma db push
+   npx prisma generate
    ```
 
 3. Build the application:
@@ -88,6 +141,92 @@ A simple and effective tool to help you manage your app subscriptions. Track rec
    ```
 
 5. The app will be accessible at `http://localhost:3000` by default.
+
+### Running with Docker
+
+1. Review `docker-compose.yml` and set production-safe values for:
+
+   * `DATABASE_URL`
+   * `NEXTAUTH_SECRET`
+   * `NEXTAUTH_URL`
+   * `RESEND_API_KEY`
+   * `EMAIL_FROM`
+   * `CRON_SECRET`
+
+2. Start the containers:
+
+   ```bash
+   docker-compose up -d
+   ```
+
+3. Apply the Prisma schema from inside the app container:
+
+   ```bash
+   docker-compose exec subscription-tracker-app npx prisma db push
+   docker-compose exec subscription-tracker-app npx prisma generate
+   ```
+
+4. Access the application at `http://localhost:3000`.
+
+5. To dispatch reminders in a self-hosted setup, run the shared reminder runner on your own schedule:
+
+   ```bash
+   docker-compose exec subscription-tracker-app npx tsx scripts/run-reminders.ts
+   ```
+
+   You can invoke that command from cron, a scheduled container job, or a dedicated worker process.
+
+## Reminder Delivery
+
+The reminder system now uses a shared dispatch pipeline:
+
+* Email is sent through Resend.
+* Webhooks remain optional and user-configurable.
+* Preset reminders are rescheduled automatically for recurring subscriptions.
+* Custom reminders are one-time by default.
+
+Core files:
+
+* `app/api/cron/reminders/route.ts`
+* `lib/reminder-dispatch.ts`
+* `lib/reminder-schedule.ts`
+* `scripts/run-reminders.ts`
+
+### Vercel
+
+This repository includes `vercel.json` with an hourly cron entry:
+
+* `GET /api/cron/reminders`
+
+The route requires:
+
+* `CRON_SECRET`
+
+Vercel Cron should call the endpoint with:
+
+* `Authorization: Bearer <CRON_SECRET>`
+
+### Docker / Self-Hosted
+
+Use the same dispatch logic by scheduling:
+
+```bash
+npx tsx scripts/run-reminders.ts
+```
+
+That keeps reminder behavior consistent across Vercel and Docker deployments.
+
+## Notification Provider Model
+
+Notification settings are intentionally split by responsibility:
+
+* **Email** is app-wide and delivered through Resend.
+* **Webhook providers** are user-managed and optional.
+
+Users do not configure SMTP credentials in the app anymore. If you want reminder emails to work, set:
+
+* `RESEND_API_KEY`
+* `EMAIL_FROM`
 
 ## Demo instance
 
