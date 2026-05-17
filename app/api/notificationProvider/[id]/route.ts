@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { notificationProviderUpdateSchema, formatZodError } from "@/lib/validations";
+import { Prisma } from "@prisma/client";
 
 function serializeProvider(provider: {
   id: string
@@ -18,6 +19,17 @@ function serializeProvider(provider: {
     ...provider,
     email: provider.type === "EMAIL" ? provider.smtpUser : null,
   };
+}
+
+function getProviderErrorMessage(error: unknown, fallback: string) {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  ) {
+    return "You already have a notification provider with that name."
+  }
+
+  return fallback
 }
 
 // GET: Get a single Notification Provider by id
@@ -91,14 +103,14 @@ export async function PUT(
             webhookSecret: validatedData.webhookSecret || null,
           };
     const updated = await prisma.notificationProvider.update({
-      where: { id: params.id, userId: session.user.id },
+      where: { id: params.id },
       data,
     });
     return NextResponse.json(serializeProvider(updated));
   } catch (error) {
     console.error("Error updating notification provider:", error);
     return NextResponse.json(
-      { error: "Failed to update notification provider" },
+      { error: getProviderErrorMessage(error, "Failed to update notification provider") },
       { status: 500 }
     );
   }
@@ -123,7 +135,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     await prisma.notificationProvider.delete({
-      where: { id: params.id, userId: session.user.id },
+      where: { id: params.id },
     });
     return NextResponse.json({ message: "Notification provider deleted" });
   } catch (error) {

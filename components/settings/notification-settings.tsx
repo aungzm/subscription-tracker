@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useTransition } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/card"
 import { toast } from "@/components/ui/use-toast"
 import { useForm } from "react-hook-form"
-import { Plus, Trash } from "lucide-react"
+import { Loader2, Plus, Trash } from "lucide-react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import {
@@ -47,9 +47,9 @@ const providerSchema = z
     id: z.string().optional(),
     name: z.string().min(1, "Name is required"),
     type: z.enum(["EMAIL", "PUSH"]),
-    email: z.string().optional(),
-    webhookUrl: z.string().optional(),
-    webhookSecret: z.string().optional().nullable(),
+    email: z.string().nullable().optional(),
+    webhookUrl: z.string().nullable().optional(),
+    webhookSecret: z.string().nullable().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.type === "EMAIL") {
@@ -104,8 +104,10 @@ function getDefaultValues(): Provider {
 }
 
 export function NotificationSettings() {
-  const [isPending, startTransition] = useTransition()
   const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const [activeTestMessage, setActiveTestMessage] = useState<string | null>(null)
   const [providers, setProviders] = useState<Provider[]>([])
   const [editingProvider, setEditingProvider] = useState<Provider | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -152,56 +154,59 @@ export function NotificationSettings() {
     }
   }
 
-  function onSubmit(values: Provider) {
-    startTransition(async () => {
-      try {
-        let url = "/api/notificationProvider"
-        let method = "POST"
+  async function onSubmit(values: Provider) {
+    setIsSaving(true)
+    setActiveTestMessage(null)
 
-        if (editingProvider?.id) {
-          url += `/${editingProvider.id}`
-          method = "PUT"
-        }
+    try {
+      let url = "/api/notificationProvider"
+      let method = "POST"
 
-        const response = await fetch(url, {
-          method,
-          body: JSON.stringify(values),
-          headers: {
-            "Content-Type": "application/json",
-          },
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({
-            message: "Failed to save notification provider",
-          }))
-          throw new Error(
-            errorData.message || errorData.error || "Failed to save notification provider"
-          )
-        }
-
-        toast({
-          title: "Success",
-          description: editingProvider
-            ? `${values.type === "EMAIL" ? "Email" : "Webhook"} updated successfully`
-            : `${values.type === "EMAIL" ? "Email" : "Webhook"} created successfully`,
-        })
-
-        await fetchProviders()
-        resetForm()
-        setIsDialogOpen(false)
-      } catch (error) {
-        console.error("Submit Error:", error)
-        toast({
-          title: "Error Saving Provider",
-          description:
-            error instanceof Error
-              ? error.message
-              : "Something went wrong. Please try again.",
-          variant: "destructive",
-        })
+      if (editingProvider?.id) {
+        url += `/${editingProvider.id}`
+        method = "PUT"
       }
-    })
+
+      const response = await fetch(url, {
+        method,
+        body: JSON.stringify(values),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({
+          message: "Failed to save notification provider",
+        }))
+        throw new Error(
+          errorData.message || errorData.error || "Failed to save notification provider"
+        )
+      }
+
+      toast({
+        title: "Success",
+        description: editingProvider
+          ? `${values.type === "EMAIL" ? "Email" : "Webhook"} updated successfully`
+          : `${values.type === "EMAIL" ? "Email" : "Webhook"} created successfully`,
+      })
+
+      await fetchProviders()
+      resetForm()
+      setIsDialogOpen(false)
+    } catch (error) {
+      console.error("Submit Error:", error)
+      toast({
+        title: "Error Saving Provider",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Something went wrong. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   async function testProvider(values: Provider) {
@@ -212,6 +217,11 @@ export function NotificationSettings() {
         body: "This is a test message from Subscription Tracker",
       },
     }
+
+    setIsTesting(true)
+    setActiveTestMessage(
+      values.type === "EMAIL" ? "Sending test email..." : "Sending test webhook..."
+    )
 
     try {
       const response = await fetch("/api/notificationProvider/send", {
@@ -236,63 +246,75 @@ export function NotificationSettings() {
         }
       }
 
+      const successMessage = [
+        data.message || `${values.type === "EMAIL" ? "Email" : "Webhook"} test succeeded.`,
+        data.delivery ? `HTTP ${data.delivery.status}` : null,
+        data.delivery?.responsePreview ? `Response: ${data.delivery.responsePreview}` : null,
+      ]
+        .filter(Boolean)
+        .join(" ")
+
+      setActiveTestMessage(successMessage)
+
       toast({
         title: "Test Successful",
-        description: [
-          data.message || `${values.type === "EMAIL" ? "Email" : "Webhook"} test succeeded.`,
-          data.delivery ? `HTTP ${data.delivery.status}` : null,
-          data.delivery?.responsePreview ? `Response: ${data.delivery.responsePreview}` : null,
-        ]
-          .filter(Boolean)
-          .join(" "),
+        description: successMessage,
       })
     } catch (error) {
+      const failureMessage =
+        error instanceof Error
+          ? error.message
+          : "Could not test the provider."
+
+      setActiveTestMessage(failureMessage)
       toast({
         title: "Test Failed",
-        description:
-          error instanceof Error
-            ? error.message
-            : "Could not test the provider.",
+        description: failureMessage,
         variant: "destructive",
       })
+    } finally {
+      setIsTesting(false)
     }
   }
 
   async function deleteProvider(id: string) {
-    startTransition(async () => {
-      try {
-        const response = await fetch(`/api/notificationProvider/${id}`, {
-          method: "DELETE",
-        })
+    setIsSaving(true)
 
-        if (!response.ok) {
-          throw new Error("Failed to delete notification provider")
-        }
+    try {
+      const response = await fetch(`/api/notificationProvider/${id}`, {
+        method: "DELETE",
+      })
 
-        toast({
-          title: "Success",
-          description: "Notification provider deleted successfully",
-        })
-
-        await fetchProviders()
-        if (editingProvider?.id === id) {
-          resetForm()
-          setIsDialogOpen(false)
-        }
-      } catch (error) {
-        console.error("Delete Error:", error)
-        toast({
-          title: "Error Deleting Provider",
-          description: "Failed to delete the provider",
-          variant: "destructive",
-        })
+      if (!response.ok) {
+        throw new Error("Failed to delete notification provider")
       }
-    })
+
+      toast({
+        title: "Success",
+        description: "Notification provider deleted successfully",
+      })
+
+      await fetchProviders()
+      if (editingProvider?.id === id) {
+        resetForm()
+        setIsDialogOpen(false)
+      }
+    } catch (error) {
+      console.error("Delete Error:", error)
+      toast({
+        title: "Error Deleting Provider",
+        description: "Failed to delete the provider",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   function resetForm() {
     form.reset(getDefaultValues())
     setEditingProvider(null)
+    setActiveTestMessage(null)
   }
 
   function openNewProviderDialog() {
@@ -350,7 +372,7 @@ export function NotificationSettings() {
                     variant="ghost"
                     size="icon"
                     onClick={() => deleteProvider(provider.id!)}
-                    disabled={isPending}
+                    disabled={isSaving || isTesting}
                     aria-label={`Delete provider ${provider.name}`}
                   >
                     <Trash className="h-4 w-4" />
@@ -372,7 +394,7 @@ export function NotificationSettings() {
                 <Button
                   variant="outline"
                   onClick={() => setEditingProvider(provider)}
-                  disabled={isPending}
+                  disabled={isSaving || isTesting}
                 >
                   Edit
                 </Button>
@@ -450,7 +472,7 @@ export function NotificationSettings() {
                             webhookSecret: null,
                           })
                         }}
-                        disabled={isPending}
+                        disabled={isSaving || isTesting}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -480,7 +502,7 @@ export function NotificationSettings() {
                       <FormItem>
                         <FormLabel>Destination Email</FormLabel>
                         <FormControl>
-                          <Input {...field} placeholder="alerts@example.com" />
+                          <Input {...field} value={field.value ?? ""} placeholder="alerts@example.com" />
                         </FormControl>
                         <FormDescription>
                           This sends an additional copy through your existing Resend setup.
@@ -501,6 +523,7 @@ export function NotificationSettings() {
                         <FormControl>
                           <Input
                             {...field}
+                            value={field.value ?? ""}
                             placeholder="https://your-service.com/webhook"
                           />
                         </FormControl>
@@ -529,6 +552,12 @@ export function NotificationSettings() {
                 </div>
               )}
 
+              {activeTestMessage && (
+                <div className="rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
+                  {activeTestMessage}
+                </div>
+              )}
+
               <DialogFooter>
                 <Button
                   type="button"
@@ -537,7 +566,7 @@ export function NotificationSettings() {
                     setIsDialogOpen(false)
                     resetForm()
                   }}
-                  disabled={isPending}
+                  disabled={isSaving || isTesting}
                 >
                   Cancel
                 </Button>
@@ -551,12 +580,19 @@ export function NotificationSettings() {
                     }
                     await testProvider(form.getValues())
                   }}
-                  disabled={isPending}
+                  disabled={isSaving || isTesting}
                 >
-                  Test {selectedType === "EMAIL" ? "Email" : "Webhook"}
+                  {isTesting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    `Test ${selectedType === "EMAIL" ? "Email" : "Webhook"}`
+                  )}
                 </Button>
-                <Button type="submit" disabled={isPending}>
-                  {isPending
+                <Button type="submit" disabled={isSaving || isTesting}>
+                  {isSaving
                     ? "Saving..."
                     : editingProvider
                       ? `Update ${selectedType === "EMAIL" ? "Email" : "Webhook"}`

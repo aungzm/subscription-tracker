@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { notificationProviderCreateSchema, formatZodError } from "@/lib/validations";
+import { Prisma } from "@prisma/client";
 
 function serializeProvider(provider: {
   id: string
@@ -18,6 +19,17 @@ function serializeProvider(provider: {
     ...provider,
     email: provider.type === "EMAIL" ? provider.smtpUser : null,
   };
+}
+
+function getProviderErrorMessage(error: unknown, fallback: string) {
+  if (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002"
+  ) {
+    return "You already have a notification provider with that name."
+  }
+
+  return fallback
 }
 
 // GET: List all Notification Providers for the current user.
@@ -82,7 +94,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Error creating notification provider:", error);
     return NextResponse.json(
-      { error: "Failed to create notification provider" },
+      { error: getProviderErrorMessage(error, "Failed to create notification provider") },
       { status: 500 }
     );
   }
