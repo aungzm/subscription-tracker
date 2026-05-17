@@ -11,6 +11,14 @@ import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import type { Resolver } from "react-hook-form"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Form,
   FormControl,
   FormDescription,
@@ -19,6 +27,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
+import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import {
   Popover,
@@ -55,7 +64,7 @@ import {
 
 // --- TYPES ---
 type NotificationProvider = { id: string; name: string }
-type Category = { id: string; name: string }
+type Category = { id: string; name: string; color?: string | null }
 type PaymentMethod = { id: string; name: string }
 type Currency = { code: string; name: unknown }
 
@@ -109,8 +118,8 @@ const reminderSchema = z.object({
   reminderPreset: z
     .enum(["custom", "1-day-before", "3-days-before", "1-week-before"])
     .optional(),
-  reminderDate: z.date(),
-  nextSendAt: z.date().optional().nullable(),
+  reminderDate: z.coerce.date(),
+  nextSendAt: z.coerce.date().optional().nullable(),
   notificationProviderIds: z.array(z.string()),
 })
 
@@ -125,8 +134,8 @@ const formSchema = z.object({
     message: "Please select a currency.",
   }),
   billingFrequency: z.enum(["monthly", "yearly", "weekly", "custom"]),
-  startDate: z.date(),
-  endDate: z.date().optional().nullable(),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date().optional().nullable(),
   paymentMethod: z.string().min(1, {
     message: "Please select a payment method.",
   }),
@@ -247,7 +256,7 @@ export function SubscriptionForm({
     defaultValues,
   })
   // Field array for managing multiple reminders
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control: form.control,
     name: "reminders",
   })
@@ -255,34 +264,78 @@ export function SubscriptionForm({
   const watchedBillingFrequency = form.watch("billingFrequency")
   const watchedReminders = form.watch("reminders") ?? []
 
-  function applyReminderPreset(index: number, preset: ReminderPreset) {
-    form.setValue(`reminders.${index}.reminderPreset`, preset, {
-      shouldDirty: true,
-      shouldTouch: true,
+  // --- Reminder modal state ---
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false)
+  const [reminderDraft, setReminderDraft] = useState<ReminderFormValue | null>(null)
+  const [editingReminderIndex, setEditingReminderIndex] = useState<number | null>(null)
+
+  function updateDraftPreset(preset: ReminderPreset) {
+    setReminderDraft((current) => {
+      if (!current) return current
+      if (preset === "custom") {
+        return { ...current, reminderPreset: preset }
+      }
+      const computed = getPresetReminderDate(
+        preset,
+        watchedStartDate,
+        watchedBillingFrequency
+      )
+      return {
+        ...current,
+        reminderPreset: preset,
+        reminderDate: computed ?? current.reminderDate,
+        nextSendAt: computed ?? current.nextSendAt,
+      }
     })
+  }
 
-    if (preset === "custom") {
-      return
-    }
-
-    const computedDate = getPresetReminderDate(
+  function openAddReminderDialog() {
+    const preset: ReminderPreset = "1-day-before"
+    const computed = getPresetReminderDate(
       preset,
       watchedStartDate,
       watchedBillingFrequency
     )
+    setReminderDraft({
+      reminderPreset: preset,
+      reminderDate: computed ?? new Date(),
+      nextSendAt: computed ?? new Date(),
+      notificationProviderIds: [],
+    })
+    setEditingReminderIndex(null)
+    setReminderDialogOpen(true)
+  }
 
-    if (computedDate) {
-      form.setValue(`reminders.${index}.reminderDate`, computedDate, {
-        shouldDirty: true,
-        shouldTouch: true,
-        shouldValidate: true,
-      })
-      form.setValue(`reminders.${index}.nextSendAt`, computedDate, {
-        shouldDirty: true,
-        shouldTouch: true,
-        shouldValidate: true,
-      })
+  function openEditReminderDialog(index: number) {
+    const existing = watchedReminders[index]
+    if (!existing) return
+    setReminderDraft({
+      id: existing.id,
+      reminderPreset: existing.reminderPreset ?? "custom",
+      reminderDate: existing.reminderDate,
+      nextSendAt: existing.nextSendAt ?? existing.reminderDate,
+      notificationProviderIds: existing.notificationProviderIds ?? [],
+    })
+    setEditingReminderIndex(index)
+    setReminderDialogOpen(true)
+  }
+
+  function saveReminderDraft() {
+    if (!reminderDraft) return
+    if (editingReminderIndex !== null) {
+      update(editingReminderIndex, reminderDraft)
+    } else {
+      append(reminderDraft)
     }
+    setReminderDialogOpen(false)
+    setReminderDraft(null)
+    setEditingReminderIndex(null)
+  }
+
+  function closeReminderDialog() {
+    setReminderDialogOpen(false)
+    setReminderDraft(null)
+    setEditingReminderIndex(null)
   }
 
   // Helper: find ID by name
@@ -489,27 +542,6 @@ export function SubscriptionForm({
     } finally {
       setIsLoading(false)
     }
-  }
-
-  // Add a new empty reminder
-  const addReminder = () => {
-    const preset: ReminderPreset = "1-day-before"
-    append({
-      reminderPreset: preset,
-      reminderDate:
-        getPresetReminderDate(
-          preset,
-          watchedStartDate,
-          watchedBillingFrequency
-        ) ?? new Date(),
-      nextSendAt:
-        getPresetReminderDate(
-          preset,
-          watchedStartDate,
-          watchedBillingFrequency
-        ) ?? new Date(),
-      notificationProviderIds: [],
-    })
   }
 
   useEffect(() => {
@@ -758,7 +790,14 @@ export function SubscriptionForm({
                   <SelectContent>
                     {categories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
-                        {category.name}
+                        <span className="flex items-center gap-2">
+                          <span
+                            aria-hidden
+                            className="inline-block h-3 w-3 rounded-full border border-border"
+                            style={{ backgroundColor: category.color ?? "#9CA3AF" }}
+                          />
+                          {category.name}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -775,7 +814,7 @@ export function SubscriptionForm({
             <h3 className="text-lg font-medium">Reminders</h3>
             <Button
               type="button"
-              onClick={addReminder}
+              onClick={openAddReminderDialog}
               variant="outline"
               size="sm"
               className="flex items-center gap-1"
@@ -787,165 +826,195 @@ export function SubscriptionForm({
 
           {fields.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              No reminders added. Click "Add Reminder" to set up reminders for
+              No reminders added. Click &quot;Add Reminder&quot; to set up reminders for
               this subscription.
             </p>
           )}
 
-          {fields.map((field, index) => (
-            <Card key={field.id} className="p-0">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start mb-4">
-                  <h4 className="text-sm font-medium">
-                    Reminder #{index + 1}
-                  </h4>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => remove(index)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    <span className="sr-only">Remove</span>
-                  </Button>
-                </div>
+          {fields.map((field, index) => {
+            const reminder = watchedReminders[index]
+            const preset = reminder?.reminderPreset ?? "custom"
+            const presetLabel =
+              REMINDER_PRESET_OPTIONS.find((o) => o.value === preset)?.label ??
+              "Custom date"
+            const providerNames = (reminder?.notificationProviderIds ?? [])
+              .map((id) => providers.find((p) => p.id === id)?.name)
+              .filter((name): name is string => !!name)
+            return (
+              <Card key={field.id} className="p-0">
+                <CardContent className="flex items-start justify-between gap-4 p-4">
+                  <div className="space-y-1 text-sm">
+                    <p className="font-medium">Reminder #{index + 1}</p>
+                    <p className="text-muted-foreground">
+                      {presetLabel}
+                      {reminder?.reminderDate
+                        ? ` · ${format(reminder.reminderDate, "PPP")}`
+                        : ""}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {providerNames.length > 0
+                        ? `Extra destinations: ${providerNames.join(", ")}`
+                        : "No extra destinations"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditReminderDialog(index)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => remove(index)}
+                      className="h-8 w-8 p-0"
+                      aria-label={`Remove reminder ${index + 1}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
 
+        <Dialog
+          open={reminderDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) closeReminderDialog()
+            else setReminderDialogOpen(true)
+          }}
+        >
+          <DialogContent className="sm:max-w-[560px]">
+            <DialogHeader>
+              <DialogTitle>
+                {editingReminderIndex !== null ? "Edit Reminder" : "Add Reminder"}
+              </DialogTitle>
+              <DialogDescription>
+                Pick when to send the reminder and (optionally) extra destinations.
+              </DialogDescription>
+            </DialogHeader>
+
+            {reminderDraft && (
+              <div className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <FormField
-                    control={form.control}
-                    name={`reminders.${index}.reminderPreset`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Reminder Timing</FormLabel>
-                        <Select
-                          value={field.value ?? "custom"}
-                          onValueChange={(value) =>
-                            applyReminderPreset(index, value as ReminderPreset)
+                  <div className="space-y-2">
+                    <Label>Reminder Timing</Label>
+                    <Select
+                      value={reminderDraft.reminderPreset ?? "custom"}
+                      onValueChange={(value) =>
+                        updateDraftPreset(value as ReminderPreset)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select reminder timing" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {REMINDER_PRESET_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Presets are calculated from the next renewal date.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <Label>Reminder Date</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full pl-3 text-left font-normal"
+                          disabled={
+                            (reminderDraft.reminderPreset ?? "custom") !== "custom"
                           }
                         >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select reminder timing" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {REMINDER_PRESET_OPTIONS.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormDescription>
-                          Presets are calculated from the next renewal date.
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name={`reminders.${index}.reminderDate`}
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Reminder Date</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant={"outline"}
-                                className="w-full pl-3 text-left font-normal"
-                                disabled={
-                                  (watchedReminders[index]?.reminderPreset ?? "custom") !==
-                                  "custom"
-                                }
-                              >
-                                {field.value
-                                  ? format(field.value, "PPP")
-                                  : <span>Pick a date</span>}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={(date) => {
-                                field.onChange(date)
-                                form.setValue(
-                                  `reminders.${index}.reminderPreset`,
-                                  "custom",
-                                  {
-                                    shouldDirty: true,
-                                    shouldTouch: true,
+                          {reminderDraft.reminderDate
+                            ? format(reminderDraft.reminderDate, "PPP")
+                            : <span>Pick a date</span>}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={reminderDraft.reminderDate}
+                          onSelect={(date) => {
+                            if (!date) return
+                            setReminderDraft((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    reminderPreset: "custom",
+                                    reminderDate: date,
+                                    nextSendAt: date,
                                   }
-                                )
-                                form.setValue(
-                                  `reminders.${index}.nextSendAt`,
-                                  date ?? null,
-                                  {
-                                    shouldDirty: true,
-                                    shouldTouch: true,
-                                  }
-                                )
-                              }}
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        {(watchedReminders[index]?.reminderPreset ?? "custom") !==
-                          "custom" && (
-                          <FormDescription>
-                            This date is auto-set from the selected preset.
-                          </FormDescription>
-                        )}
-                        <FormMessage />
-                      </FormItem>
+                                : current
+                            )
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    {(reminderDraft.reminderPreset ?? "custom") !== "custom" && (
+                      <p className="text-xs text-muted-foreground">
+                        Auto-set from the selected preset.
+                      </p>
                     )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name={`reminders.${index}.notificationProviderIds`}
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Notification Providers</FormLabel>
-                        <FormControl>
-                          <MultiSelect
-                            value={field.value}
-                            onChange={field.onChange}
-                            placeholder="Select providers"
-                            disabled={providersLoading}
-                          >
-                            <MultiSelectTrigger>
-                              <MultiSelectValue placeholder="Select providers" />
-                            </MultiSelectTrigger>
-                            <MultiSelectContent>
-                              {providers.map((provider) => (
-                                <MultiSelectItem
-                                  key={provider.id}
-                                  value={provider.id}
-                                >
-                                  {provider.name}
-                                </MultiSelectItem>
-                              ))}
-                            </MultiSelectContent>
-                          </MultiSelect>
-                        </FormControl>
-                        <FormDescription>
-                          Optional extra email or webhook destinations for this reminder
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+
+                <div className="space-y-2">
+                  <Label>Notification Providers</Label>
+                  <MultiSelect
+                    value={reminderDraft.notificationProviderIds}
+                    onChange={(ids) =>
+                      setReminderDraft((current) =>
+                        current
+                          ? { ...current, notificationProviderIds: ids }
+                          : current
+                      )
+                    }
+                    placeholder="Select providers"
+                    disabled={providersLoading}
+                  >
+                    <MultiSelectTrigger>
+                      <MultiSelectValue placeholder="Select providers" />
+                    </MultiSelectTrigger>
+                    <MultiSelectContent>
+                      {providers.map((provider) => (
+                        <MultiSelectItem key={provider.id} value={provider.id}>
+                          {provider.name}
+                        </MultiSelectItem>
+                      ))}
+                    </MultiSelectContent>
+                  </MultiSelect>
+                  <p className="text-xs text-muted-foreground">
+                    Optional extra email or webhook destinations for this reminder.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeReminderDialog}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={saveReminderDraft}>
+                {editingReminderIndex !== null ? "Save Changes" : "Add Reminder"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <FormField
           control={form.control}
