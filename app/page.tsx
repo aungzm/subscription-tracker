@@ -65,7 +65,7 @@ export default async function Home() {
             </div>
             <div>
               <p className="font-heading text-base font-semibold">SubTracker</p>
-              <p className="text-xs text-muted-foreground">Subscription command center</p>
+              <p className="text-xs text-muted-foreground">Track and calculate subscriptions</p>
             </div>
           </Link>
           <nav className="flex items-center gap-3">
