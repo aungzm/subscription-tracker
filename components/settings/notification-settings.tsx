@@ -227,9 +227,24 @@ export function NotificationSettings() {
         throw new Error(errorData.message || "Failed to test provider")
       }
 
+      const data = (await response.json()) as {
+        message?: string
+        delivery?: {
+          status: number
+          target: string
+          responsePreview: string | null
+        }
+      }
+
       toast({
         title: "Test Successful",
-        description: `${values.type === "EMAIL" ? "Email" : "Webhook"} test succeeded.`,
+        description: [
+          data.message || `${values.type === "EMAIL" ? "Email" : "Webhook"} test succeeded.`,
+          data.delivery ? `HTTP ${data.delivery.status}` : null,
+          data.delivery?.responsePreview ? `Response: ${data.delivery.responsePreview}` : null,
+        ]
+          .filter(Boolean)
+          .join(" "),
       })
     } catch (error) {
       toast({

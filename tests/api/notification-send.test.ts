@@ -62,8 +62,14 @@ describe("sendWebhook()", () => {
     ).rejects.toThrow("Webhook responded with status 502: Oops")
   })
 
-  it("resolves to true when fetch.ok === true", async () => {
-    fetchSpy.mockResolvedValueOnce({ ok: true } as never)
+  it("returns delivery details when fetch.ok === true", async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      statusText: "No Content",
+      text: () => Promise.resolve(""),
+    } as never)
+
     await expect(
       sendWebhook({
         type: "PUSH",
@@ -71,7 +77,12 @@ describe("sendWebhook()", () => {
         webhookSecret: baseProvider.webhookSecret,
         message: baseProvider.message,
       })
-    ).resolves.toBe(true)
+    ).resolves.toMatchObject({
+      ok: true,
+      status: 204,
+      target: "example.com",
+      responsePreview: null,
+    })
   })
 })
 
@@ -105,8 +116,13 @@ describe("sendEmail()", () => {
     ).rejects.toThrow("Missing Resend configuration")
   })
 
-  it("resolves true when resend accepts the request", async () => {
-    fetchSpy.mockResolvedValueOnce({ ok: true } as never)
+  it("returns delivery details when resend accepts the request", async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      status: 202,
+      statusText: "Accepted",
+      text: () => Promise.resolve('{\"id\":\"email_123\"}'),
+    } as never)
 
     await expect(
       sendEmail({
@@ -114,7 +130,12 @@ describe("sendEmail()", () => {
         to: "user@example.com",
         message: { subject: "S", body: "B" },
       })
-    ).resolves.toBe(true)
+    ).resolves.toMatchObject({
+      ok: true,
+      status: 202,
+      target: "user@example.com",
+      responsePreview: "{\"id\":\"email_123\"}",
+    })
   })
 })
 
@@ -208,7 +229,12 @@ describe("POST /api/notification-providers/test", () => {
   })
 
   it("200 when sendWebhook succeeds", async () => {
-    fetchSpy.mockResolvedValueOnce({ ok: true } as never)
+    fetchSpy.mockResolvedValueOnce({
+      ok: true,
+      status: 204,
+      statusText: "No Content",
+      text: () => Promise.resolve(""),
+    } as never)
     const req = new Request("http://x", {
       method: "POST",
       body: JSON.stringify(goodPush),
@@ -217,7 +243,14 @@ describe("POST /api/notification-providers/test", () => {
     expect(res.init).toBeUndefined()
     expect(res.body).toEqual({
       success: true,
-      message: "Notification test via PUSH sent successfully.",
+      message: "Webhook test accepted by example.com.",
+      delivery: {
+        ok: true,
+        status: 204,
+        statusText: "No Content",
+        target: "example.com",
+        responsePreview: null,
+      },
     })
   })
 })

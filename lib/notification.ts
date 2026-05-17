@@ -3,6 +3,14 @@ export type NotificationMessage = {
   body: string
 }
 
+export type DeliveryResult = {
+  ok: true
+  status: number
+  statusText: string
+  target: string
+  responsePreview: string | null
+}
+
 export type EmailNotificationInput = {
   type: "EMAIL"
   to: string
@@ -23,6 +31,52 @@ export type ProviderData = {
   webhookSecret?: string | null
   email?: string | null
   message: NotificationMessage
+}
+
+function getTargetHost(url: string) {
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
+function isDiscordWebhook(url: string) {
+  try {
+    const parsed = new URL(url)
+    return parsed.hostname === "discord.com" || parsed.hostname.endsWith(".discord.com")
+  } catch {
+    return false
+  }
+}
+
+function buildWebhookPayload(input: WebhookNotificationInput) {
+  if (input.webhookUrl && isDiscordWebhook(input.webhookUrl)) {
+    return {
+      content: `${input.message.subject}\n${input.message.body}`,
+      embeds: [
+        {
+          title: input.message.subject,
+          description: input.message.body,
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    }
+  }
+
+  return {
+    source: "subscription-tracker",
+    event: "notification.test",
+    subject: input.message.subject,
+    body: input.message.body,
+    timestamp: new Date().toISOString(),
+  }
+}
+
+async function readResponsePreview(res: Response) {
+  const responseBody = await res.text()
+  const trimmed = responseBody.trim()
+  return trimmed.length > 0 ? trimmed.slice(0, 300) : null
 }
 
 export async function sendEmail(input: EmailNotificationInput) {
@@ -47,14 +101,21 @@ export async function sendEmail(input: EmailNotificationInput) {
     }),
   })
 
+  const responsePreview = await readResponsePreview(res)
+
   if (!res.ok) {
-    const responseBody = await res.text()
     throw new Error(
-      `Resend responded with status ${res.status}: ${responseBody || res.statusText}`
+      `Resend responded with status ${res.status}: ${responsePreview || res.statusText}`
     )
   }
 
-  return true
+  return {
+    ok: true,
+    status: res.status,
+    statusText: res.statusText,
+    target: input.to,
+    responsePreview,
+  } satisfies DeliveryResult
 }
 
 export async function sendWebhook(input: WebhookNotificationInput) {
@@ -62,18 +123,9 @@ export async function sendWebhook(input: WebhookNotificationInput) {
     throw new Error("Missing webhook URL for PUSH notification")
   }
 
-  const discordPayload = {
-    embeds: [
-      {
-        title: input.message.subject,
-        description: input.message.body,
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  }
-
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "User-Agent": "subscription-tracker/1.0",
   }
 
   if (input.webhookSecret) {
@@ -83,15 +135,22 @@ export async function sendWebhook(input: WebhookNotificationInput) {
   const res = await fetch(input.webhookUrl, {
     method: "POST",
     headers,
-    body: JSON.stringify(discordPayload),
+    body: JSON.stringify(buildWebhookPayload(input)),
   })
 
+  const responsePreview = await readResponsePreview(res)
+
   if (!res.ok) {
-    const responseBody = await res.text()
     throw new Error(
-      `Webhook responded with status ${res.status}: ${responseBody || res.statusText}`
+      `Webhook responded with status ${res.status}: ${responsePreview || res.statusText}`
     )
   }
 
-  return true
+  return {
+    ok: true,
+    status: res.status,
+    statusText: res.statusText,
+    target: getTargetHost(input.webhookUrl),
+    responsePreview,
+  } satisfies DeliveryResult
 }

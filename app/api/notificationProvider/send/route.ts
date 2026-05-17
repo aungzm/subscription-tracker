@@ -18,6 +18,9 @@ export async function POST(request: Request) {
     }
 
     const provider = parseResult.data;
+    let result:
+      | { ok: true; status: number; statusText: string; target: string; responsePreview: string | null }
+      | undefined
 
     if (provider.type === "EMAIL") {
       if (!provider.email) {
@@ -27,7 +30,7 @@ export async function POST(request: Request) {
         );
       }
 
-      await sendEmail({
+      result = await sendEmail({
         type: "EMAIL",
         to: provider.email,
         message: provider.message,
@@ -39,7 +42,7 @@ export async function POST(request: Request) {
           { status: 400 }
         );
       }
-      await sendWebhook({
+      result = await sendWebhook({
         type: "PUSH",
         webhookUrl: provider.webhookUrl,
         webhookSecret: provider.webhookSecret,
@@ -54,7 +57,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: `Notification test via ${provider.type} sent successfully.`,
+      message:
+        provider.type === "EMAIL"
+          ? `Email test accepted for ${result?.target}.`
+          : `Webhook test accepted by ${result?.target}.`,
+      delivery: result,
     });
   } catch (error: unknown) {
     let errorMessage = "Failed to test notification provider";
