@@ -7,14 +7,16 @@ services:
     restart: unless-stopped
     ports:
       - "5432:5432"
+    env_file:
+      - .env
     environment:
-      - POSTGRES_USER=subtracker
-      - POSTGRES_PASSWORD=subtracker_password
-      - POSTGRES_DB=subscription_tracker
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U subtracker"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,10 +30,41 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-      - DATABASE_URL=postgresql://subtracker:subtracker_password@postgres:5432/subscription_tracker?schema=public
-      - NEXTAUTH_SECRET=change-this-to-a-random-secret-in-production
-      - NEXTAUTH_URL=http://localhost:3000
+      - DATABASE_URL=${DATABASE_URL}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - CRON_SECRET=${CRON_SECRET}
+      - NEXT_PUBLIC_DEMO_MODE=${NEXT_PUBLIC_DEMO_MODE:-false}
+
+  reminder-worker:
+    image: ghcr.io/aungzm/subscription-tracker:latest
+    container_name: subscription-tracker-reminder-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - REMINDER_POLL_INTERVAL_SECONDS=${REMINDER_POLL_INTERVAL_SECONDS:-3600}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        echo "Starting reminder worker with interval ${REMINDER_POLL_INTERVAL_SECONDS:-3600}s"
+        while true; do
+          date
+          pnpm exec tsx scripts/run-reminders.ts
+          sleep ${REMINDER_POLL_INTERVAL_SECONDS:-3600}
+        done
 
 volumes:
   postgres_data:

@@ -51,7 +51,7 @@ A simple and effective tool to help you manage your app subscriptions. Track rec
 
 ### Environment Variables
 
-Create a `.env` file before running the app locally.
+Create a `.env` file before running the app locally. You can start from `.env.example`.
 
 Required:
 
@@ -144,37 +144,53 @@ Notes:
 
 ### Running with Docker
 
-1. Review `docker-compose.yml` and set production-safe values for:
+1. Copy the example env file and update it with production-safe values:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Review `.env` and set production-safe values for:
 
    * `DATABASE_URL`
+   * `POSTGRES_USER`
+   * `POSTGRES_PASSWORD`
+   * `POSTGRES_DB`
    * `NEXTAUTH_SECRET`
    * `NEXTAUTH_URL`
    * `RESEND_API_KEY`
    * `EMAIL_FROM`
    * `CRON_SECRET`
+   * `REMINDER_POLL_INTERVAL_SECONDS`
 
-2. Start the containers:
+3. Start the containers:
 
    ```bash
    docker-compose up -d
    ```
 
-3. Apply the Prisma schema from inside the app container:
+4. Apply the Prisma schema from inside the app container:
 
    ```bash
    docker-compose exec subscription-tracker-app npx prisma db push
    docker-compose exec subscription-tracker-app npx prisma generate
    ```
 
-4. Access the application at `http://localhost:3000`.
+5. Access the application at `http://localhost:3000`.
 
-5. To dispatch reminders in a self-hosted setup, run the shared reminder runner on your own schedule:
+6. The Compose stack now includes a `reminder-worker` service that automatically runs:
 
    ```bash
-   docker-compose exec subscription-tracker-app npx tsx scripts/run-reminders.ts
+   pnpm exec tsx scripts/run-reminders.ts
    ```
 
-   You can invoke that command from cron, a scheduled container job, or a dedicated worker process.
+   It repeats on the interval defined by `REMINDER_POLL_INTERVAL_SECONDS` in `.env` and shares the same database and Resend configuration as the main app.
+
+7. To watch the reminder worker logs:
+
+   ```bash
+   docker-compose logs -f reminder-worker
+   ```
 
 ## Reminder Delivery
 
@@ -208,13 +224,13 @@ Vercel Cron should call the endpoint with:
 
 ### Docker / Self-Hosted
 
-Use the same dispatch logic by scheduling:
+The Docker Compose setup includes a `reminder-worker` container that runs the same dispatch logic on a loop:
 
 ```bash
-npx tsx scripts/run-reminders.ts
+pnpm exec tsx scripts/run-reminders.ts
 ```
 
-That keeps reminder behavior consistent across Vercel and Docker deployments.
+Set `REMINDER_POLL_INTERVAL_SECONDS` in `.env` to control how often the worker checks for due reminders. That keeps reminder behavior consistent across Vercel and Docker deployments.
 
 ## Notification Provider Model
 
