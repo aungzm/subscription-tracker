@@ -74,12 +74,24 @@ export async function runReminderDispatch(now: Date = new Date()): Promise<Dispa
       const webhookErrors: string[] = []
       for (const provider of reminder.notificationProviders) {
         try {
-          await sendWebhook({
-            type: "PUSH",
-            webhookUrl: provider.webhookUrl,
-            webhookSecret: provider.webhookSecret,
-            message,
-          })
+          if (provider.type === "EMAIL") {
+            if (!provider.smtpUser) {
+              throw new Error("Missing email address for EMAIL notification")
+            }
+
+            await sendEmail({
+              type: "EMAIL",
+              to: provider.smtpUser,
+              message,
+            })
+          } else {
+            await sendWebhook({
+              type: "PUSH",
+              webhookUrl: provider.webhookUrl,
+              webhookSecret: provider.webhookSecret,
+              message,
+            })
+          }
         } catch (error) {
           result.webhookFailures += 1
           webhookErrors.push(

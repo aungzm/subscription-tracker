@@ -135,22 +135,19 @@ export const reminderCreateSchema = z.object({
 });
 
 // Notification provider schemas
-export const notificationProviderCreateSchema = z
-  .object({
+export const notificationProviderCreateSchema = z.discriminatedUnion("type", [
+  z.object({
+    name: z.string().min(1, "Name is required"),
+    type: z.literal("EMAIL"),
+    email: z.string().email("Valid email is required"),
+  }),
+  z.object({
     name: z.string().min(1, "Name is required"),
     type: z.literal("PUSH"),
-    webhookUrl: z.string().url().nullable().optional(),
+    webhookUrl: z.string().url("Webhook URL is required"),
     webhookSecret: z.string().nullable().optional(),
-  })
-  .refine(
-    (data) => {
-      return !!data.webhookUrl
-    },
-    {
-      message: "Webhook URL is required for webhook providers",
-      path: ["webhookUrl"],
-    }
-  );
+  }),
+]);
 
 export const notificationProviderUpdateSchema = notificationProviderCreateSchema;
 

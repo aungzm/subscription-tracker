@@ -3,6 +3,23 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { notificationProviderCreateSchema, formatZodError } from "@/lib/validations";
 
+function serializeProvider(provider: {
+  id: string
+  name: string
+  type: "EMAIL" | "PUSH"
+  webhookUrl: string | null
+  webhookSecret: string | null
+  smtpUser: string | null
+  createdAt: Date
+  updatedAt: Date
+  userId: string
+}) {
+  return {
+    ...provider,
+    email: provider.type === "EMAIL" ? provider.smtpUser : null,
+  };
+}
+
 // GET: List all Notification Providers for the current user.
 export async function GET() {
   try {
@@ -14,7 +31,7 @@ export async function GET() {
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json(providers);
+    return NextResponse.json(providers.map(serializeProvider));
   } catch (error) {
     console.error("Error fetching notification providers:", error);
     return NextResponse.json(
@@ -40,21 +57,34 @@ export async function POST(request: Request) {
 
     const validatedData = parseResult.data;
 
-    const data = {
-      name: validatedData.name,
-      type: validatedData.type,
-      userId: session.user.id,
-      smtpServer: null,
-      smtpPort: null,
-      smtpUser: null,
-      smtpPassword: null,
-      webhookUrl: validatedData.webhookUrl || null,
-      webhookSecret: validatedData.webhookSecret || null,
-    };
+    const data =
+      validatedData.type === "EMAIL"
+        ? {
+            name: validatedData.name,
+            type: validatedData.type,
+            userId: session.user.id,
+            smtpServer: null,
+            smtpPort: null,
+            smtpUser: validatedData.email,
+            smtpPassword: null,
+            webhookUrl: null,
+            webhookSecret: null,
+          }
+        : {
+            name: validatedData.name,
+            type: validatedData.type,
+            userId: session.user.id,
+            smtpServer: null,
+            smtpPort: null,
+            smtpUser: null,
+            smtpPassword: null,
+            webhookUrl: validatedData.webhookUrl,
+            webhookSecret: validatedData.webhookSecret || null,
+          };
     const provider = await prisma.notificationProvider.create({
       data,
     });
-    return NextResponse.json(provider);
+    return NextResponse.json(serializeProvider(provider));
   } catch (error) {
     console.error("Error creating notification provider:", error);
     return NextResponse.json(

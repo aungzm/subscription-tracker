@@ -935,7 +935,7 @@ export function SubscriptionForm({
                           </MultiSelect>
                         </FormControl>
                         <FormDescription>
-                          Optional webhook destinations for this reminder
+                          Optional extra email or webhook destinations for this reminder
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

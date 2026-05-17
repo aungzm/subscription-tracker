@@ -140,14 +140,49 @@ describe("API Integration Tests: Notification Providers Root", () => {
       expect(res.init).toEqual({ status: 400 })
     })
 
-    it("rejects EMAIL providers", async () => {
+    it("creates EMAIL provider with destination email", async () => {
+      const emailBody = {
+        name: "Finance Inbox",
+        type: "EMAIL",
+        email: "finance@example.com",
+      }
+      const created = createMockNotificationProvider({
+        id: "new-email-id",
+        name: "Finance Inbox",
+        type: "EMAIL",
+        smtpServer: null,
+        smtpPort: null,
+        smtpUser: "finance@example.com",
+        smtpPassword: null,
+        webhookUrl: null,
+        webhookSecret: null,
+      })
+      mockedPrisma.notificationProvider.create.mockResolvedValueOnce(created)
+
       const res = (await POST(
-        makeRequest({
-          name: "Email provider",
+        makeRequest(emailBody)
+      )) as unknown as ApiResponse<NotificationProvider & { email: string | null }>
+
+      expect(res.body).toMatchObject({
+        name: "Finance Inbox",
+        type: "EMAIL",
+        email: "finance@example.com",
+        userId: aliceId,
+      })
+
+      expect(mockedPrisma.notificationProvider.create).toHaveBeenCalledWith({
+        data: {
+          name: "Finance Inbox",
           type: "EMAIL",
-        })
-      )) as unknown as ApiResponse<{ error: string }>
-      expect(res.init).toEqual({ status: 400 })
+          userId: aliceId,
+          smtpServer: null,
+          smtpPort: null,
+          smtpUser: "finance@example.com",
+          smtpPassword: null,
+          webhookUrl: null,
+          webhookSecret: null,
+        },
+      })
     })
 
     it("creates PUSH provider with webhook config", async () => {

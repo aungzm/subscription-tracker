@@ -34,16 +34,74 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
-const providerSchema = z.object({
-  id: z.string().optional(),
-  name: z.string().min(1, "Name is required"),
-  type: z.literal("PUSH"),
-  webhookUrl: z.string().url({ message: "Invalid URL" }),
-  webhookSecret: z.string().optional().nullable(),
-})
+const providerSchema = z
+  .object({
+    id: z.string().optional(),
+    name: z.string().min(1, "Name is required"),
+    type: z.enum(["EMAIL", "PUSH"]),
+    email: z.string().optional(),
+    webhookUrl: z.string().optional(),
+    webhookSecret: z.string().optional().nullable(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.type === "EMAIL") {
+      if (!value.email) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Valid email is required",
+          path: ["email"],
+        })
+        return
+      }
+
+      const parsed = z.string().email().safeParse(value.email)
+      if (!parsed.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Valid email is required",
+          path: ["email"],
+        })
+      }
+    }
+
+    if (value.type === "PUSH") {
+      if (!value.webhookUrl) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Webhook URL is required",
+          path: ["webhookUrl"],
+        })
+        return
+      }
+
+      const parsed = z.string().url().safeParse(value.webhookUrl)
+      if (!parsed.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Invalid URL",
+          path: ["webhookUrl"],
+        })
+      }
+    }
+  })
 
 type Provider = z.infer<typeof providerSchema>
+
+function getDefaultValues(): Provider {
+  return {
+    name: "",
+    type: "EMAIL",
+    email: "",
+  }
+}
 
 export function NotificationSettings() {
   const [isPending, startTransition] = useTransition()
@@ -55,13 +113,10 @@ export function NotificationSettings() {
   const form = useForm<Provider>({
     resolver:
       zodResolver(providerSchema) as unknown as import("react-hook-form").Resolver<Provider>,
-    defaultValues: {
-      name: "",
-      type: "PUSH",
-      webhookUrl: "",
-      webhookSecret: null,
-    },
+    defaultValues: getDefaultValues(),
   })
+
+  const selectedType = form.watch("type")
 
   useEffect(() => {
     fetchProviders()
@@ -71,10 +126,10 @@ export function NotificationSettings() {
     if (editingProvider) {
       form.reset(editingProvider)
       setIsDialogOpen(true)
-    } else {
+    } else if (!isDialogOpen) {
       resetForm()
     }
-  }, [editingProvider, form])
+  }, [editingProvider, form, isDialogOpen])
 
   async function fetchProviders() {
     try {
@@ -83,7 +138,7 @@ export function NotificationSettings() {
         throw new Error("Failed to fetch notification providers")
       }
 
-      const data = await response.json()
+      const data = (await response.json()) as Provider[]
       setProviders(data)
     } catch (error) {
       console.error("Fetch Providers Error:", error)
@@ -108,14 +163,9 @@ export function NotificationSettings() {
           method = "PUT"
         }
 
-        const payload = {
-          ...values,
-          webhookSecret: values.webhookSecret || null,
-        }
-
         const response = await fetch(url, {
           method,
-          body: JSON.stringify(payload),
+          body: JSON.stringify(values),
           headers: {
             "Content-Type": "application/json",
           },
@@ -126,18 +176,18 @@ export function NotificationSettings() {
             message: "Failed to save notification provider",
           }))
           throw new Error(
-            errorData.message || "Failed to save notification provider"
+            errorData.message || errorData.error || "Failed to save notification provider"
           )
         }
 
         toast({
           title: "Success",
           description: editingProvider
-            ? "Webhook updated successfully"
-            : "Webhook created successfully",
+            ? `${values.type === "EMAIL" ? "Email" : "Webhook"} updated successfully`
+            : `${values.type === "EMAIL" ? "Email" : "Webhook"} created successfully`,
         })
 
-        fetchProviders()
+        await fetchProviders()
         resetForm()
         setIsDialogOpen(false)
       } catch (error) {
@@ -179,7 +229,7 @@ export function NotificationSettings() {
 
       toast({
         title: "Test Successful",
-        description: "Webhook test succeeded.",
+        description: `${values.type === "EMAIL" ? "Email" : "Webhook"} test succeeded.`,
       })
     } catch (error) {
       toast({
@@ -206,10 +256,10 @@ export function NotificationSettings() {
 
         toast({
           title: "Success",
-          description: "Webhook deleted successfully",
+          description: "Notification provider deleted successfully",
         })
 
-        fetchProviders()
+        await fetchProviders()
         if (editingProvider?.id === id) {
           resetForm()
           setIsDialogOpen(false)
@@ -226,20 +276,20 @@ export function NotificationSettings() {
   }
 
   function resetForm() {
-    form.reset({
-      name: "",
-      type: "PUSH",
-      webhookUrl: "",
-      webhookSecret: null,
-    })
+    form.reset(getDefaultValues())
     setEditingProvider(null)
+  }
+
+  function openNewProviderDialog() {
+    resetForm()
+    setIsDialogOpen(true)
   }
 
   if (isLoading) {
     return (
       <div className="space-y-8">
         <div className="mb-4 flex items-center justify-between">
-          <Skeleton className="h-10 w-[140px]" />
+          <Skeleton className="h-10 w-[160px]" />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -268,9 +318,9 @@ export function NotificationSettings() {
   return (
     <div className="space-y-8">
       <div className="mb-4 flex items-center justify-between">
-        <Button onClick={() => setIsDialogOpen(true)}>
+        <Button onClick={openNewProviderDialog}>
           <Plus className="mr-2 h-4 w-4" />
-          Add Webhook
+          Add Provider
         </Button>
       </div>
 
@@ -291,10 +341,17 @@ export function NotificationSettings() {
                     <Trash className="h-4 w-4" />
                   </Button>
                 </div>
-                <CardDescription>Optional webhook destination</CardDescription>
+                <CardDescription>
+                  {provider.type === "EMAIL" ? "Extra reminder recipient" : "Optional webhook destination"}
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-1 text-sm">
-                <p>Webhook: {provider.webhookUrl}</p>
+                <p>Type: {provider.type === "EMAIL" ? "Email" : "Webhook"}</p>
+                {provider.type === "EMAIL" ? (
+                  <p>Email: {provider.email}</p>
+                ) : (
+                  <p>Webhook: {provider.webhookUrl}</p>
+                )}
               </CardContent>
               <CardFooter>
                 <Button
@@ -310,21 +367,26 @@ export function NotificationSettings() {
         </div>
       ) : (
         <p className="text-muted-foreground">
-          No webhook providers found. Email reminders are handled automatically
-          through the app-wide Resend integration.
+          No notification providers found. Add an email destination or webhook for reminder fan-out.
         </p>
       )}
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog
+        open={isDialogOpen}
+        onOpenChange={(open) => {
+          setIsDialogOpen(open)
+          if (!open) {
+            resetForm()
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
-              {editingProvider ? "Edit Webhook" : "Add New Webhook"}
+              {editingProvider ? "Edit Notification Provider" : "Add Notification Provider"}
             </DialogTitle>
             <DialogDescription>
-              Email reminders use the app-wide Resend configuration. Add webhooks
-              here if you also want reminder fan-out to Discord, Slack gateways,
-              or other webhook endpoints.
+              Resend still sends the app-wide reminder email. These providers are optional extra destinations for demoing email fan-out or webhook delivery.
             </DialogDescription>
           </DialogHeader>
 
@@ -336,9 +398,9 @@ export function NotificationSettings() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Webhook Name</FormLabel>
+                      <FormLabel>Provider Name</FormLabel>
                       <FormControl>
-                        <Input {...field} placeholder="Discord billing alerts" />
+                        <Input {...field} placeholder="Finance team inbox" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -351,11 +413,42 @@ export function NotificationSettings() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Provider Type</FormLabel>
-                      <FormControl>
-                        <Input {...field} disabled />
-                      </FormControl>
+                      <Select
+                        value={field.value}
+                        onValueChange={(value: "EMAIL" | "PUSH") => {
+                          field.onChange(value)
+                          if (value === "EMAIL") {
+                            form.reset({
+                              id: form.getValues("id"),
+                              name: form.getValues("name"),
+                              type: "EMAIL",
+                              email: "",
+                            })
+                            return
+                          }
+
+                          form.reset({
+                            id: form.getValues("id"),
+                            name: form.getValues("name"),
+                            type: "PUSH",
+                            webhookUrl: "",
+                            webhookSecret: null,
+                          })
+                        }}
+                        disabled={isPending}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a provider type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="EMAIL">Email</SelectItem>
+                          <SelectItem value="PUSH">Webhook</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        Webhooks are the only user-managed reminder providers.
+                        Pick where reminder copies should be delivered.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -363,42 +456,63 @@ export function NotificationSettings() {
                 />
               </div>
 
-              <div className="space-y-4 rounded-md border p-4">
-                <FormField
-                  control={form.control}
-                  name="webhookUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Webhook URL</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="https://your-service.com/webhook"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              {selectedType === "EMAIL" ? (
+                <div className="space-y-4 rounded-md border p-4">
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Destination Email</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="alerts@example.com" />
+                        </FormControl>
+                        <FormDescription>
+                          This sends an additional copy through your existing Resend setup.
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-4 rounded-md border p-4">
+                  <FormField
+                    control={form.control}
+                    name="webhookUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Webhook URL</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="https://your-service.com/webhook"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField
-                  control={form.control}
-                  name="webhookSecret"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Webhook Secret (Optional)</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value ?? ""}
-                          placeholder="Optional secret for verification"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                  <FormField
+                    control={form.control}
+                    name="webhookSecret"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Webhook Secret (Optional)</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value ?? ""}
+                            placeholder="Optional secret for verification"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              )}
 
               <DialogFooter>
                 <Button
@@ -406,9 +520,7 @@ export function NotificationSettings() {
                   variant="destructive"
                   onClick={() => {
                     setIsDialogOpen(false)
-                    if (editingProvider) {
-                      resetForm()
-                    }
+                    resetForm()
                   }}
                   disabled={isPending}
                 >
@@ -426,14 +538,14 @@ export function NotificationSettings() {
                   }}
                   disabled={isPending}
                 >
-                  Test Webhook
+                  Test {selectedType === "EMAIL" ? "Email" : "Webhook"}
                 </Button>
                 <Button type="submit" disabled={isPending}>
                   {isPending
                     ? "Saving..."
                     : editingProvider
-                      ? "Update Webhook"
-                      : "Add Webhook"}
+                      ? `Update ${selectedType === "EMAIL" ? "Email" : "Webhook"}`
+                      : `Add ${selectedType === "EMAIL" ? "Email" : "Webhook"}`}
                 </Button>
               </DialogFooter>
             </form>
