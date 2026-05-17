@@ -153,10 +153,7 @@ async function main() {
         id: IDS.NOTIFICATION_PROVIDER_IDS.ALICE_EMAIL, // <-- Add predictable ID
         name: "Alice Email",
         type: NotificationProviderType.EMAIL,
-        smtpServer: "smtp.alice.com",
-        smtpPort: 587,
         smtpUser: "alice@example.com",
-        smtpPassword: "supersecret",
         userId: alice.id,
       },
     }),
@@ -175,10 +172,7 @@ async function main() {
         id: IDS.NOTIFICATION_PROVIDER_IDS.BOB_EMAIL, // <-- Add predictable ID
         name: "Bob Email",
         type: NotificationProviderType.EMAIL,
-        smtpServer: "smtp.bob.com",
-        smtpPort: 465,
         smtpUser: "bob@example.com",
-        smtpPassword: "bobsecret",
         userId: bob.id,
       },
     }),

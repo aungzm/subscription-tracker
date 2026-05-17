@@ -63,10 +63,7 @@ export async function POST(request: Request) {
             name: validatedData.name,
             type: validatedData.type,
             userId: session.user.id,
-            smtpServer: null,
-            smtpPort: null,
             smtpUser: validatedData.email,
-            smtpPassword: null,
             webhookUrl: null,
             webhookSecret: null,
           }
@@ -74,10 +71,7 @@ export async function POST(request: Request) {
             name: validatedData.name,
             type: validatedData.type,
             userId: session.user.id,
-            smtpServer: null,
-            smtpPort: null,
             smtpUser: null,
-            smtpPassword: null,
             webhookUrl: validatedData.webhookUrl,
             webhookSecret: validatedData.webhookSecret || null,
           };

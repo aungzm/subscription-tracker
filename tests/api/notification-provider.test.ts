@@ -119,10 +119,7 @@ describe("API Integration Tests: Notification Providers [id]", () => {
         id: alicePushId,
         name: "Alice Push",
         type: "PUSH",
-        smtpServer: null,
-        smtpPort: null,
         smtpUser: null,
-        smtpPassword: null,
         webhookUrl: "https://push.example.com",
       })
       mockedPrisma.notificationProvider.findUnique.mockResolvedValueOnce(provider)
@@ -193,10 +190,7 @@ describe("API Integration Tests: Notification Providers [id]", () => {
         id: alicePushId,
         name: "Alice Push",
         type: "PUSH",
-        smtpServer: null,
-        smtpPort: null,
         smtpUser: null,
-        smtpPassword: null,
         webhookUrl: "https://push.alice.com",
         webhookSecret: "secret",
       })
@@ -224,10 +218,7 @@ describe("API Integration Tests: Notification Providers [id]", () => {
         id: alicePushId,
         name: "Webhook Only",
         type: "PUSH",
-        smtpServer: null,
-        smtpPort: null,
         smtpUser: null,
-        smtpPassword: null,
         webhookUrl: "https://new.webhook/",
         webhookSecret: "abc123",
       })
@@ -248,8 +239,6 @@ describe("API Integration Tests: Notification Providers [id]", () => {
         userId: aliceId,
         name: "Webhook Only",
         type: "PUSH",
-        smtpServer: null,
-        smtpPort: null,
         webhookUrl: "https://new.webhook/",
         webhookSecret: "abc123",
       })

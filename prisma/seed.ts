@@ -450,10 +450,7 @@ async function main() {
       data: {
         name: "Alice Primary Email",
         type: NotificationProviderType.EMAIL,
-        smtpServer: "smtp.mailtrap.io",
-        smtpPort: 2525,
         smtpUser: "alice@example.com",
-        smtpPassword: "demo-alice-email",
         userId: alice.id,
       },
     }),
@@ -479,10 +476,7 @@ async function main() {
       data: {
         name: "Bob Email",
         type: NotificationProviderType.EMAIL,
-        smtpServer: "smtp.mailtrap.io",
-        smtpPort: 2525,
         smtpUser: "bob@example.com",
-        smtpPassword: "demo-bob-email",
         userId: bob.id,
       },
     }),

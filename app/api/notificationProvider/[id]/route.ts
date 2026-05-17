@@ -79,20 +79,14 @@ export async function PUT(
         ? {
             name: validatedData.name,
             type: validatedData.type,
-            smtpServer: null,
-            smtpPort: null,
             smtpUser: validatedData.email,
-            smtpPassword: null,
             webhookUrl: null,
             webhookSecret: null,
           }
         : {
             name: validatedData.name,
             type: validatedData.type,
-            smtpServer: null,
-            smtpPort: null,
             smtpUser: null,
-            smtpPassword: null,
             webhookUrl: validatedData.webhookUrl,
             webhookSecret: validatedData.webhookSecret || null,
           };
