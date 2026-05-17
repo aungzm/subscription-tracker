@@ -21,24 +21,18 @@ export async function GET(
     const subscription = await prisma.subscription.findFirst({
       where: { id, userId: session.user.id },
       include: {
-      category: {
-        select: { name: true },
-      },
-      paymentMethod: {
-        select: { name: true },
-      },
-      reminders: {
-        select: {
-        id: true,
-        reminderDate: true,
-        preset: true,
-        daysBefore: true,
-        nextSendAt: true,
-        notificationProviders: {
-          select: { name: true }
-        }
-        }
-      },
+        category: { select: { id: true, name: true } },
+        paymentMethod: { select: { id: true, name: true } },
+        reminders: {
+          select: {
+            id: true,
+            reminderDate: true,
+            preset: true,
+            daysBefore: true,
+            nextSendAt: true,
+            notificationProviders: { select: { id: true, name: true } },
+          },
+        },
       },
     });
 
@@ -55,15 +49,18 @@ export async function GET(
 
     return NextResponse.json({
       ...rest,
-      category: subscription.category?.name ?? null,
-      paymentMethod: subscription.paymentMethod?.name ?? null,
+      category: subscription.category?.id ?? null,
+      categoryName: subscription.category?.name ?? null,
+      paymentMethod: subscription.paymentMethod?.id ?? null,
+      paymentMethodName: subscription.paymentMethod?.name ?? null,
       reminders: subscription.reminders.map(reminder => ({
         id: reminder.id,
         date: reminder.reminderDate,
         preset: reminder.preset,
         daysBefore: reminder.daysBefore,
         nextSendAt: reminder.nextSendAt,
-        providers: reminder.notificationProviders.map(provider => provider.name),
+        providers: reminder.notificationProviders.map(provider => provider.id),
+        providerNames: reminder.notificationProviders.map(provider => provider.name),
       })),
     });
   } catch (error) {
@@ -106,6 +103,32 @@ export async function PUT(
         { error: "Subscription not found" },
         { status: 404 }
       );
+    }
+
+    // Verify category / paymentMethod ownership if provided
+    if (validatedData.category) {
+      const owned = await prisma.category.findFirst({
+        where: { id: validatedData.category, userId: session.user.id },
+        select: { id: true },
+      });
+      if (!owned) {
+        return NextResponse.json(
+          { error: "Invalid category" },
+          { status: 400 }
+        );
+      }
+    }
+    if (validatedData.paymentMethod) {
+      const owned = await prisma.paymentMethod.findFirst({
+        where: { id: validatedData.paymentMethod, userId: session.user.id },
+        select: { id: true },
+      });
+      if (!owned) {
+        return NextResponse.json(
+          { error: "Invalid payment method" },
+          { status: 400 }
+        );
+      }
     }
 
     const updated = await prisma.subscription.update({

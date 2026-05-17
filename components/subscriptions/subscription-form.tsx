@@ -101,14 +101,14 @@ type SubscriptionApiResponse = {
   createdAt?: string
   updatedAt?: string
   userId?: string
-  category: string // name
-  paymentMethod: string // name
+  category: string | null // id
+  paymentMethod: string | null // id
   reminders: Array<{
     id: string
     date: string | Date
     preset?: string | null
     nextSendAt?: string | Date | null
-    providers: string[] // names
+    providers: string[] // ids
   }>
 }
 
@@ -338,25 +338,6 @@ export function SubscriptionForm({
     setEditingReminderIndex(null)
   }
 
-  // Helper: find ID by name
-  function findIdByName<T extends { id: string; name: string }>(
-    arr: T[],
-    name: string
-  ): string | "" {
-    const found = arr.find((item) => item.name === name)
-    return found ? found.id : ""
-  }
-
-  // Helper: find IDs by names
-  function findIdsByNames<T extends { id: string; name: string }>(
-    arr: T[],
-    names: string[]
-  ): string[] {
-    return names
-      .map((name) => arr.find((item) => item.name === name)?.id)
-      .filter((id): id is string => !!id)
-  }
-
   // Fetch subscription data when in edit mode
   useEffect(() => {
     if (
@@ -378,8 +359,8 @@ export function SubscriptionForm({
             billingFrequency: data.billingFrequency as "monthly" | "yearly" | "weekly" | "custom",
             startDate: new Date(data.startDate),
             endDate: data.endDate ? new Date(data.endDate) : null,
-            paymentMethod: findIdByName(paymentMethods, data.paymentMethod),
-            category: findIdByName(categories, data.category),
+            paymentMethod: data.paymentMethod ?? "",
+            category: data.category ?? "",
             notes: data.notes || "",
             reminders:
               data.reminders?.map((reminder) => ({
@@ -395,10 +376,7 @@ export function SubscriptionForm({
                 nextSendAt: reminder.nextSendAt
                   ? new Date(reminder.nextSendAt)
                   : null,
-                notificationProviderIds: findIdsByNames(
-                  providers,
-                  reminder.providers
-                ),
+                notificationProviderIds: reminder.providers ?? [],
               })) || [],
           }
           form.reset(formData)

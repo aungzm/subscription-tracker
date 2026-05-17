@@ -50,51 +50,35 @@ export async function POST(request: Request) {
 
     const validatedData = parseResult.data;
 
-    // Create or find category if provided
-    let categoryId = null;
+    // category/paymentMethod come in as IDs from the form. Verify ownership.
+    let categoryId: string | null = null;
     if (validatedData.category) {
       const category = await prisma.category.findFirst({
-        where: {
-          name: validatedData.category,
-          userId: session.user.id,
-        },
+        where: { id: validatedData.category, userId: session.user.id },
+        select: { id: true },
       });
-
-      if (category) {
-        categoryId = category.id;
-      } else {
-        const newCategory = await prisma.category.create({
-          data: {
-            name: validatedData.category,
-            userId: session.user.id,
-          },
-        });
-        categoryId = newCategory.id;
+      if (!category) {
+        return NextResponse.json(
+          { error: "Invalid category" },
+          { status: 400 }
+        );
       }
+      categoryId = category.id;
     }
 
-    // Create or find payment method if provided
-    let paymentMethodId = null;
+    let paymentMethodId: string | null = null;
     if (validatedData.paymentMethod) {
       const paymentMethod = await prisma.paymentMethod.findFirst({
-        where: {
-          name: validatedData.paymentMethod,
-          userId: session.user.id,
-        },
+        where: { id: validatedData.paymentMethod, userId: session.user.id },
+        select: { id: true },
       });
-
-      if (paymentMethod) {
-        paymentMethodId = paymentMethod.id;
-      } else {
-        const newPaymentMethod = await prisma.paymentMethod.create({
-          data: {
-            name: validatedData.paymentMethod,
-            type: "OTHER",
-            userId: session.user.id,
-          },
-        });
-        paymentMethodId = newPaymentMethod.id;
+      if (!paymentMethod) {
+        return NextResponse.json(
+          { error: "Invalid payment method" },
+          { status: 400 }
+        );
       }
+      paymentMethodId = paymentMethod.id;
     }
 
     const subscription = await prisma.subscription.create({
