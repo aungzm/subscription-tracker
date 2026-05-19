@@ -86,6 +86,7 @@ export async function PUT(
     const params = await context.params;
     const id = params.id;
     const body = await request.json();
+    const hasEndDate = Object.prototype.hasOwnProperty.call(body, "endDate");
 
     const parseResult = subscriptionUpdateSchema.safeParse(body);
     if (!parseResult.success) {
@@ -131,6 +132,12 @@ export async function PUT(
       }
     }
 
+    const endDate = hasEndDate
+      ? validatedData.endDate === null || validatedData.endDate === undefined
+        ? null
+        : new Date(validatedData.endDate)
+      : existing.endDate;
+
     const updated = await prisma.subscription.update({
       where: { id, userId: session.user.id },
       data: {
@@ -140,10 +147,7 @@ export async function PUT(
         startDate: validatedData.startDate
           ? new Date(validatedData.startDate)
           : existing.startDate,
-        endDate:
-          validatedData.endDate === null || validatedData.endDate === undefined
-            ? null
-            : new Date(validatedData.endDate),
+        endDate,
         notes: validatedData.notes ?? existing.notes,
         currency: validatedData.currency ?? existing.currency,
         categoryId: validatedData.category ?? existing.categoryId,
