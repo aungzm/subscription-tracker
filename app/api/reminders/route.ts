@@ -4,6 +4,27 @@ import { prisma } from "@/lib/db";
 import { reminderCreateSchema, formatZodError } from "@/lib/validations";
 import { getDaysBeforeFromPreset, reminderPresetToDbValue } from "@/lib/reminder-schedule";
 
+async function validateNotificationProviderOwnership(
+  providerIds: string[],
+  userId: string
+) {
+  const uniqueProviderIds = Array.from(new Set(providerIds))
+
+  if (uniqueProviderIds.length === 0) {
+    return true
+  }
+
+  const ownedProviders = await prisma.notificationProvider.findMany({
+    where: {
+      id: { in: uniqueProviderIds },
+      userId,
+    },
+    select: { id: true },
+  })
+
+  return ownedProviders.length === uniqueProviderIds.length
+}
+
 // GET all reminders for the logged-in user
 export async function GET() {
   try {
@@ -66,6 +87,18 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "Subscription not found" },
         { status: 404 }
+      )
+    }
+
+    const providersAreOwned = await validateNotificationProviderOwnership(
+      notificationProviderIds,
+      session.user.id
+    )
+
+    if (!providersAreOwned) {
+      return NextResponse.json(
+        { error: "Invalid notification provider" },
+        { status: 400 }
       )
     }
 
