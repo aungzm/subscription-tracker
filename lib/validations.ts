@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+const dateString = (fieldName: string) =>
+  z
+    .string()
+    .min(1, `${fieldName} is required`)
+    .refine((value) => !Number.isNaN(new Date(value).getTime()), {
+      message: `${fieldName} must be a valid date`,
+    });
+
+const optionalDateString = (fieldName: string) =>
+  dateString(fieldName).nullable().optional();
+
 // Helper for consistent error responses
 export function formatZodError(error: z.ZodError) {
   return {
@@ -50,8 +61,8 @@ export const subscriptionCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   cost: z.number().positive("Cost must be positive"),
   billingFrequency: z.enum(billingFrequencyValues),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().nullable().optional(),
+  startDate: dateString("Start date"),
+  endDate: optionalDateString("End date"),
   notes: z.string().nullable().optional(),
   currency: z.string().min(1, "Currency is required"),
   category: z.string().nullable().optional(),
@@ -62,8 +73,8 @@ export const subscriptionUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   cost: z.number().positive().optional(),
   billingFrequency: z.enum(billingFrequencyValues).optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().nullable().optional(),
+  startDate: dateString("Start date").optional(),
+  endDate: optionalDateString("End date"),
   notes: z.string().nullable().optional(),
   currency: z.string().min(1).optional(),
   category: z.string().nullable().optional(),
@@ -109,7 +120,7 @@ export const paymentMethodCreateSchema = z.object({
     .regex(/^\d{4}$/, "Last four must be digits only")
     .nullable()
     .optional(),
-  expiryDate: z.string().nullable().optional(),
+  expiryDate: optionalDateString("Expiry date"),
 });
 
 export const paymentMethodUpdateSchema = z.object({
@@ -121,15 +132,15 @@ export const paymentMethodUpdateSchema = z.object({
     .regex(/^\d{4}$/)
     .nullable()
     .optional(),
-  expiryDate: z.string().nullable().optional(),
+  expiryDate: optionalDateString("Expiry date"),
 });
 
 // Reminder schemas
 export const reminderCreateSchema = z.object({
   subscriptionId: z.string().min(1, "Subscription ID is required"),
-  reminderDate: z.string().min(1, "Reminder date is required"),
+  reminderDate: dateString("Reminder date"),
   reminderPreset: z.enum(reminderPresetValues).optional().default("custom"),
-  nextSendAt: z.string().min(1, "Next send date is required"),
+  nextSendAt: dateString("Next send date"),
   notificationProviderIds: z.array(z.string()).optional().default([]),
   id: z.string().optional(), // For updates
 });
