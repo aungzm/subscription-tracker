@@ -132,9 +132,10 @@ describe("API Integration Tests: Subscriptions [id]", () => {
         billingFrequency: "monthly",
       });
 
-      // category & paymentMethod are names (mapped by route handler)
-      expect(sub.category).toBe("Streaming");
-      expect(sub.paymentMethod).toBe("Visa");
+      expect(sub.category).toBe(CATEGORY_IDS.STREAMING);
+      expect(sub.categoryName).toBe("Streaming");
+      expect(sub.paymentMethod).toBe(PAYMENT_METHOD_IDS.VISA);
+      expect(sub.paymentMethodName).toBe("Visa");
 
       // reminders is an array of { date, providers: string[] }
       expect(Array.isArray(sub.reminders)).toBe(true);
@@ -206,6 +207,9 @@ describe("API Integration Tests: Subscriptions [id]", () => {
         name: "PayPal",
         type: "PAYPAL",
       });
+
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(productivityCat);
+      mockedPrisma.paymentMethod.findFirst.mockResolvedValueOnce(paypalMethod);
 
       const updatedSub = {
         ...createMockSubscription({
