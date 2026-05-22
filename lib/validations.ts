@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { getWebhookUrlSafetyError } from "@/lib/webhook-url";
 
 const dateString = (fieldName: string) =>
   z
@@ -10,6 +11,13 @@ const dateString = (fieldName: string) =>
 
 const optionalDateString = (fieldName: string) =>
   dateString(fieldName).nullable().optional();
+
+const webhookUrlString = z
+  .string()
+  .url("Webhook URL is required")
+  .refine((value) => getWebhookUrlSafetyError(value) === null, {
+    message: "Webhook URL must be a public HTTPS URL",
+  });
 
 // Helper for consistent error responses
 export function formatZodError(error: z.ZodError) {
@@ -155,7 +163,7 @@ export const notificationProviderCreateSchema = z.discriminatedUnion("type", [
   z.object({
     name: z.string().min(1, "Name is required"),
     type: z.literal("PUSH"),
-    webhookUrl: z.string().url("Webhook URL is required"),
+    webhookUrl: webhookUrlString,
     webhookSecret: z.string().nullable().optional(),
   }),
 ]);
@@ -167,7 +175,7 @@ export const sendNotificationSchema = z.object({
   name: z.string().min(1).optional().default("Notification"),
   type: z.enum(["EMAIL", "PUSH"]),
   email: z.string().email().optional().nullable(),
-  webhookUrl: z.string().url().optional().nullable(),
+  webhookUrl: webhookUrlString.optional().nullable(),
   webhookSecret: z.string().optional().nullable(),
   message: z.object({
     subject: z.string().min(1),

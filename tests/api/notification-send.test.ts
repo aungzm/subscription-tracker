@@ -44,6 +44,42 @@ describe("sendWebhook()", () => {
     ).rejects.toThrow("Missing webhook URL for PUSH notification")
   })
 
+  it("throws before fetch for localhost webhook URLs", async () => {
+    await expect(
+      sendWebhook({
+        type: "PUSH",
+        webhookUrl: "https://localhost/hook",
+        message: baseProvider.message,
+      })
+    ).rejects.toThrow("Webhook URL host is not allowed")
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it("throws before fetch for private IP webhook URLs", async () => {
+    await expect(
+      sendWebhook({
+        type: "PUSH",
+        webhookUrl: "https://192.168.1.20/hook",
+        message: baseProvider.message,
+      })
+    ).rejects.toThrow("Webhook URL host is not allowed")
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it("throws before fetch for non-HTTPS webhook URLs", async () => {
+    await expect(
+      sendWebhook({
+        type: "PUSH",
+        webhookUrl: "http://example.com/hook",
+        message: baseProvider.message,
+      })
+    ).rejects.toThrow("Webhook URL must use HTTPS")
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
   it("throws when fetch returns non-OK", async () => {
     fetchSpy.mockResolvedValueOnce({
       ok: false,
@@ -209,6 +245,18 @@ describe("POST /api/notification-providers/test", () => {
     expect(res.body.message).toBe(
       "Webhook URL is required for PUSH notifications"
     )
+  })
+
+  it("400 when PUSH webhookUrl is not public HTTPS", async () => {
+    const req = new Request("http://x", {
+      method: "POST",
+      body: JSON.stringify({ ...goodPush, webhookUrl: "https://localhost/hook" }),
+    })
+    const res = (await POST(req)) as any
+
+    expect(res.init).toEqual({ status: 400 })
+    expect(res.body.error).toBe("Validation failed")
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 
   it("500 when sendWebhook fails", async () => {

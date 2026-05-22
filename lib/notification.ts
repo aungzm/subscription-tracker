@@ -1,3 +1,5 @@
+import { assertSafeWebhookUrl } from "@/lib/webhook-url"
+
 export type NotificationMessage = {
   subject: string
   body: string
@@ -123,6 +125,8 @@ export async function sendWebhook(input: WebhookNotificationInput) {
     throw new Error("Missing webhook URL for PUSH notification")
   }
 
+  assertSafeWebhookUrl(input.webhookUrl)
+
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "User-Agent": "subscription-tracker/1.0",
@@ -136,6 +140,8 @@ export async function sendWebhook(input: WebhookNotificationInput) {
     method: "POST",
     headers,
     body: JSON.stringify(buildWebhookPayload(input)),
+    redirect: "manual",
+    signal: AbortSignal.timeout(5_000),
   })
 
   const responsePreview = await readResponsePreview(res)
