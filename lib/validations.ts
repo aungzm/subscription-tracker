@@ -153,6 +153,12 @@ export const reminderCreateSchema = z.object({
   id: z.string().optional(), // For updates
 });
 
+export const reminderUpdateSchema = z.object({
+  reminderDate: dateString("Reminder date").optional(),
+  nextSendAt: optionalDateString("Next send date"),
+  isRead: z.boolean().optional(),
+});
+
 // Notification provider schemas
 export const notificationProviderCreateSchema = z.discriminatedUnion("type", [
   z.object({
@@ -195,5 +201,6 @@ export type CategoryUpdateInput = z.infer<typeof categoryUpdateSchema>;
 export type PaymentMethodCreateInput = z.infer<typeof paymentMethodCreateSchema>;
 export type PaymentMethodUpdateInput = z.infer<typeof paymentMethodUpdateSchema>;
 export type ReminderCreateInput = z.infer<typeof reminderCreateSchema>;
+export type ReminderUpdateInput = z.infer<typeof reminderUpdateSchema>;
 export type NotificationProviderInput = z.infer<typeof notificationProviderCreateSchema>;
 export type SendNotificationInput = z.infer<typeof sendNotificationSchema>;
