@@ -1,7 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { MonthlyTrend } from "@/components/analytics/monthly-trend"
 import { YearlyTrend } from "@/components/analytics/yearly-trend"
-import { cookies, headers } from "next/headers"
+import { getInternalAppOrigin } from "@/lib/app-url"
+import { cookies } from "next/headers"
 
 export const dynamic = "force-dynamic"
 
@@ -64,10 +65,9 @@ type YearlyTrendData = {
 async function getAnalyticsData(): Promise<AnalyticsData> {
   const cookieStore = await cookies()
   const cookie = cookieStore.toString()
-  const host = (await headers()).get("host")
-  const protocol = process.env.NODE_ENV === "development" ? "http" : "https"
+  const origin = getInternalAppOrigin()
 
-  const res = await fetch(`${protocol}://${host}/api/analytics/details`, {
+  const res = await fetch(`${origin}/api/analytics/details`, {
     headers: { cookie },
     next: { revalidate: 180, tags: ["analytics"] },
   })
@@ -78,11 +78,10 @@ async function getAnalyticsData(): Promise<AnalyticsData> {
 async function getMonthlyTrendData(): Promise<MonthlyTrendData> {
   const cookieStore = await cookies()
   const cookie = cookieStore.toString()
-  const host = (await headers()).get("host")
-  const protocol = process.env.NODE_ENV === "development" ? "http" : "https"
+  const origin = getInternalAppOrigin()
   const currentYear = new Date().getFullYear()
 
-  const res = await fetch(`${protocol}://${host}/api/analytics/monthly?year=${currentYear}`, {
+  const res = await fetch(`${origin}/api/analytics/monthly?year=${currentYear}`, {
     headers: { cookie },
     next: { revalidate: 180, tags: ["analytics"] },
   })
@@ -93,10 +92,9 @@ async function getMonthlyTrendData(): Promise<MonthlyTrendData> {
 async function getYearlyTrendData(): Promise<YearlyTrendData> {
   const cookieStore = await cookies()
   const cookie = cookieStore.toString()
-  const host = (await headers()).get("host")
-  const protocol = process.env.NODE_ENV === "development" ? "http" : "https"
+  const origin = getInternalAppOrigin()
 
-  const res = await fetch(`${protocol}://${host}/api/analytics/yearly`, {
+  const res = await fetch(`${origin}/api/analytics/yearly`, {
     headers: { cookie },
     next: { revalidate: 180, tags: ["analytics"] },
   })

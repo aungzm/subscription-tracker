@@ -5,8 +5,9 @@ import { Overview } from "@/components/dashboard/overview";
 import { RecentSubscriptions } from "@/components/dashboard/recent-subscriptions";
 import { UpcomingRenewals } from "@/components/dashboard/upcoming-renewals";
 import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
+import { getInternalAppOrigin } from "@/lib/app-url";
 import { formatCurrency } from "@/lib/currency";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
@@ -83,9 +84,7 @@ async function getDashboardData(): Promise<DashboardData> {
   const cookieStore = await cookies();
   const cookie = cookieStore.toString();
 
-  const host = (await headers()).get("host");
-  const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
-  const url = `${protocol}://${host}/api/subscriptions/details`;
+  const url = `${getInternalAppOrigin()}/api/subscriptions/details`;
 
   const res = await fetch(url, {
     headers: { cookie },
