@@ -304,6 +304,9 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("returns 500 on database update failure", async () => {
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(
+        createMockCategory({ id: streamingCatId })
+      );
       mockedPrisma.category.update.mockRejectedValueOnce(new Error("Update failure"));
 
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`, {
@@ -322,11 +325,31 @@ describe("API Integration Tests: Categories", () => {
       expect(res.body).toEqual({ error: "Failed to update category" });
     });
 
+    it("returns 404 when category to update is not found", async () => {
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(null);
+
+      const req = new Request(`http://localhost/api/categories/${streamingCatId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedData),
+      });
+      const ctx = { params: Promise.resolve({ id: streamingCatId }) };
+
+      const res = (await PUT(req, ctx)) as unknown as ApiResponse<{ error: string }>;
+
+      expect(res.body).toEqual({ error: "Not found" });
+      expect(res.init).toEqual({ status: 404 });
+      expect(mockedPrisma.category.update).not.toHaveBeenCalled();
+    });
+
     it("updates and returns the category", async () => {
       const updatedCat = createMockCategory({
         id: streamingCatId,
         ...updatedData,
       });
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(
+        createMockCategory({ id: streamingCatId })
+      );
       mockedPrisma.category.update.mockResolvedValueOnce(updatedCat);
 
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`, {
@@ -357,6 +380,9 @@ describe("API Integration Tests: Categories", () => {
         id: streamingCatId,
         name: "Updated Name Only",
       });
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(
+        createMockCategory({ id: streamingCatId })
+      );
       mockedPrisma.category.update.mockResolvedValueOnce(updatedCat);
 
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`, {
@@ -383,6 +409,9 @@ describe("API Integration Tests: Categories", () => {
         id: streamingCatId,
         color: "#FF0000",
       });
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(
+        createMockCategory({ id: streamingCatId })
+      );
       mockedPrisma.category.update.mockResolvedValueOnce(updatedCat);
 
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`, {
@@ -420,6 +449,9 @@ describe("API Integration Tests: Categories", () => {
     });
 
     it("returns 500 on database delete failure", async () => {
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(
+        createMockCategory({ id: streamingCatId })
+      );
       mockedPrisma.category.delete.mockRejectedValueOnce(new Error("Delete failure"));
 
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
@@ -434,8 +466,22 @@ describe("API Integration Tests: Categories", () => {
       expect(res.body).toEqual({ error: "Failed to delete category" });
     });
 
+    it("returns 404 when category to delete is not found", async () => {
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(null);
+
+      const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
+      const ctx = { params: Promise.resolve({ id: streamingCatId }) };
+
+      const res = (await DELETE(req, ctx)) as unknown as ApiResponse<{ error: string }>;
+
+      expect(res.body).toEqual({ error: "Not found" });
+      expect(res.init).toEqual({ status: 404 });
+      expect(mockedPrisma.category.delete).not.toHaveBeenCalled();
+    });
+
     it("deletes category and returns success message", async () => {
       const deletedCat = createMockCategory({ id: streamingCatId });
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(deletedCat);
       mockedPrisma.category.delete.mockResolvedValueOnce(deletedCat);
 
       const req = new Request(`http://localhost/api/categories/${streamingCatId}`);
