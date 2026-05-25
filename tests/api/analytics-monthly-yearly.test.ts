@@ -10,6 +10,10 @@ import { DeepMockProxy } from "jest-mock-extended";
 import { PrismaClient } from "@prisma/client";
 import { USER_IDS, SUBSCRIPTION_IDS, CATEGORY_IDS } from "../../prisma/test-ids";
 import { createMockUser, createMockSubscription, createMockCategory } from "../factories";
+import {
+  convertCurrencyWithRatesSafe,
+  normalizeToMonthlyCostSyncSafe,
+} from "@/lib/currency";
 
 jest.mock("@/lib/auth", () => ({
   auth: jest.fn(),
@@ -23,12 +27,23 @@ jest.mock("next/server", () => ({
 }));
 
 jest.mock("@/lib/currency", () => ({
-  normalizeToMonthlyCost: jest.fn(async (cost: number) => cost),
-  convertCurrency: jest.fn(async (cost: number) => cost),
+  prefetchExchangeRates: jest.fn(async () => new Map()),
+  normalizeToMonthlyCostSyncSafe: jest.fn((cost: number) => ({
+    success: true,
+    amount: cost,
+  })),
+  convertCurrencyWithRatesSafe: jest.fn((cost: number) => ({
+    success: true,
+    amount: cost,
+  })),
 }));
 
 const mockedAuth = auth as jest.MockedFunction<typeof auth>;
 const mockedPrisma = prisma as unknown as DeepMockProxy<PrismaClient>;
+const mockedNormalizeToMonthlyCostSyncSafe =
+  normalizeToMonthlyCostSyncSafe as jest.MockedFunction<typeof normalizeToMonthlyCostSyncSafe>;
+const mockedConvertCurrencyWithRatesSafe =
+  convertCurrencyWithRatesSafe as jest.MockedFunction<typeof convertCurrencyWithRatesSafe>;
 
 type ApiResponse<T> = { body: T; init?: { status: number } };
 
@@ -154,6 +169,43 @@ describe("API Integration Tests: Analytics Monthly & Yearly", () => {
       expect(res.body.categories).toEqual([]);
       expect(res.body.currency).toBe("USD");
     });
+
+    it("returns warnings instead of 500 when monthly conversion fails", async () => {
+      mockedPrisma.user.findUnique.mockResolvedValueOnce(
+        createMockUser({ currency: "CAD" })
+      );
+
+      const sub = {
+        ...createMockSubscription({
+          id: SUBSCRIPTION_IDS.NETFLIX,
+          cost: 12,
+          currency: "USD",
+          billingFrequency: "monthly",
+          startDate: new Date(2025, 0, 1),
+          endDate: null,
+        }),
+        category: null,
+      };
+      mockedPrisma.subscription.findMany.mockResolvedValueOnce([sub] as any);
+      mockedPrisma.subscription.findMany.mockResolvedValueOnce([
+        { startDate: new Date(2025, 0, 1), endDate: null },
+      ] as any);
+      mockedNormalizeToMonthlyCostSyncSafe.mockReturnValueOnce({
+        success: false,
+        amount: 12,
+        error: "No exchange rates found for USD",
+      });
+
+      const res = (await getMonthly(
+        makeRequest("year=2025")
+      )) as unknown as ApiResponse<any>;
+
+      expect(res.init).toBeUndefined();
+      expect(res.body.monthlyData[0].total).toBe(12);
+      expect(res.body.warnings.conversionErrors).toEqual([
+        `${SUBSCRIPTION_IDS.NETFLIX}: No exchange rates found for USD`,
+      ]);
+    });
   });
 
   // ─── GET /api/analytics/yearly ───────────────────────────────────────
@@ -231,6 +283,40 @@ describe("API Integration Tests: Analytics Monthly & Yearly", () => {
       expect(res.body.yearlyData).toEqual([]);
       expect(res.body.categories).toEqual([]);
       expect(res.body.currency).toBe("USD");
+    });
+
+    it("returns warnings instead of 500 when yearly conversion fails", async () => {
+      mockedPrisma.user.findUnique.mockResolvedValueOnce(
+        createMockUser({ currency: "CAD" })
+      );
+
+      const sub = {
+        ...createMockSubscription({
+          id: SUBSCRIPTION_IDS.NETFLIX,
+          cost: 10,
+          currency: "USD",
+          billingFrequency: "monthly",
+          startDate: new Date(2025, 0, 1),
+          endDate: new Date(2025, 11, 31),
+        }),
+        category: null,
+      };
+      mockedPrisma.subscription.findMany.mockResolvedValueOnce([sub] as any);
+      mockedConvertCurrencyWithRatesSafe.mockReturnValueOnce({
+        success: false,
+        amount: 10,
+        error: "No exchange rates found for USD",
+      });
+
+      const res = (await getYearly(makeRequest())) as unknown as ApiResponse<any>;
+
+      expect(res.init).toBeUndefined();
+      expect(res.body.yearlyData).toEqual([
+        { year: 2025, total: 120, uncategorized: 120 },
+      ]);
+      expect(res.body.warnings.conversionErrors).toEqual([
+        `${SUBSCRIPTION_IDS.NETFLIX}: No exchange rates found for USD`,
+      ]);
     });
 
     it("returns 500 on database failure", async () => {

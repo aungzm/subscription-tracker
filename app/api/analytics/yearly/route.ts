@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { convertCurrency } from "@/lib/currency";
+import {
+  convertCurrencyWithRatesSafe,
+  prefetchExchangeRates,
+} from "@/lib/currency";
 
 interface Subscription {
   id: string;
@@ -53,6 +56,10 @@ export async function GET(request: NextRequest) {
       include: { category: true },
     });
 
+    const uniqueCurrencies = [...new Set(subscriptions.map((sub) => sub.currency))];
+    const ratesMap = await prefetchExchangeRates(uniqueCurrencies);
+    const conversionErrors: string[] = [];
+
     // Get all years from subscriptions
     const years = subscriptions.flatMap((sub) => {
       const startYear = new Date(sub.startDate).getFullYear();
@@ -92,8 +99,18 @@ export async function GET(request: NextRequest) {
         ? Math.min(new Date(sub.endDate).getFullYear(), currentYear)
         : currentYear;
 
-      // Convert cost to user's preferred currency first
-      const convertedCost = await convertCurrency(sub.cost, sub.currency, userCurrency);
+      // Convert cost to user's preferred currency first.
+      const conversionResult = convertCurrencyWithRatesSafe(
+        sub.cost,
+        sub.currency,
+        userCurrency,
+        ratesMap
+      );
+      const convertedCost = conversionResult.amount;
+
+      if (!conversionResult.success && conversionResult.error) {
+        conversionErrors.push(`${sub.id}: ${conversionResult.error}`);
+      }
 
       // Calculate yearly cost based on billing frequency (using converted cost)
       let yearlyCost: number;
@@ -216,6 +233,12 @@ export async function GET(request: NextRequest) {
       yearlyData,
       categories: Object.values(categoryMeta),
       currency: userCurrency,
+      ...(conversionErrors.length > 0 && {
+        warnings: {
+          conversionErrors: [...new Set(conversionErrors)],
+          message: "Some currency conversions failed. Amounts use original currency values.",
+        },
+      }),
     });
   } catch (error) {
     console.error("Error fetching yearly analytics:", error);
