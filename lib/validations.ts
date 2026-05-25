@@ -12,6 +12,41 @@ const dateString = (fieldName: string) =>
 const optionalDateString = (fieldName: string) =>
   dateString(fieldName).nullable().optional();
 
+const supportedCurrencyCodes = new Set(
+  (
+    (Intl as unknown as {
+      supportedValuesOf?: (key: "currency") => string[];
+    }).supportedValuesOf?.("currency") ?? [
+      "USD",
+      "EUR",
+      "GBP",
+      "CAD",
+      "AUD",
+      "JPY",
+      "CHF",
+      "CNY",
+      "INR",
+    ]
+  ).map((code) => code.toUpperCase())
+);
+
+function isValidCurrencyCode(value: string) {
+  if (!/^[A-Z]{3}$/.test(value)) {
+    return false;
+  }
+
+  return supportedCurrencyCodes.has(value);
+}
+
+const currencyCode = (fieldName = "Currency") =>
+  z
+    .string()
+    .trim()
+    .transform((value) => value.toUpperCase())
+    .refine(isValidCurrencyCode, {
+      message: `${fieldName} must be a valid ISO currency code`,
+    });
+
 const webhookUrlString = z
   .string()
   .url("Webhook URL is required")
@@ -49,11 +84,11 @@ export const passwordUpdateSchema = z
 export const profileUpdateSchema = z.object({
   name: z.string().min(1, "Name is required").optional(),
   image: z.string().url().nullable().optional(),
-  currency: z.string().min(1).optional(),
+  currency: currencyCode().optional(),
 });
 
 export const currencyUpdateSchema = z.object({
-  currency: z.string().min(1, "Currency is required"),
+  currency: currencyCode(),
 });
 
 // Subscription schemas
@@ -72,7 +107,7 @@ export const subscriptionCreateSchema = z.object({
   startDate: dateString("Start date"),
   endDate: optionalDateString("End date"),
   notes: z.string().nullable().optional(),
-  currency: z.string().min(1, "Currency is required"),
+  currency: currencyCode(),
   category: z.string().nullable().optional(),
   paymentMethod: z.string().nullable().optional(),
 });
@@ -84,7 +119,7 @@ export const subscriptionUpdateSchema = z.object({
   startDate: dateString("Start date").optional(),
   endDate: optionalDateString("End date"),
   notes: z.string().nullable().optional(),
-  currency: z.string().min(1).optional(),
+  currency: currencyCode().optional(),
   category: z.string().nullable().optional(),
   paymentMethod: z.string().nullable().optional(),
 });

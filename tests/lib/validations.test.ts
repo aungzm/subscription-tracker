@@ -1,6 +1,8 @@
 import {
+  currencyUpdateSchema,
   paymentMethodCreateSchema,
   paymentMethodUpdateSchema,
+  profileUpdateSchema,
   reminderCreateSchema,
   subscriptionCreateSchema,
   subscriptionUpdateSchema,
@@ -77,6 +79,33 @@ describe("validation schemas", () => {
           expiryDate: "not-a-date",
         }).success
       ).toBe(false);
+    });
+  });
+
+  describe("currency fields", () => {
+    it("accepts and normalizes valid ISO currency codes", () => {
+      expect(currencyUpdateSchema.parse({ currency: "usd" })).toEqual({
+        currency: "USD",
+      });
+
+      expect(profileUpdateSchema.parse({ currency: " eur " })).toEqual({
+        currency: "EUR",
+      });
+    });
+
+    it("rejects invalid currency codes", () => {
+      expect(currencyUpdateSchema.safeParse({ currency: "" }).success).toBe(false);
+      expect(currencyUpdateSchema.safeParse({ currency: "USDX" }).success).toBe(
+        false
+      );
+      expect(currencyUpdateSchema.safeParse({ currency: "ZZZ" }).success).toBe(false);
+      expect(subscriptionCreateSchema.safeParse({
+        name: "Netflix",
+        cost: 15.99,
+        billingFrequency: "monthly",
+        startDate: "2026-01-01",
+        currency: "not-money",
+      }).success).toBe(false);
     });
   });
 });
