@@ -1,9 +1,11 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { FileText, UploadCloud } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -22,12 +24,15 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { parseCsv } from "@/lib/import-csv"
+import { formatCurrency } from "@/lib/currency"
 import {
+  detectMonthlySubscriptionCandidates,
   guessImportColumnMapping,
   normalizeTransactionRows,
   type ImportColumnMapping,
   type ImportColumnRole,
   type RawTransactionRow,
+  type SubscriptionImportCandidate,
 } from "@/lib/import-detection"
 
 const REQUIRED_ROLES: ImportColumnRole[] = ["merchant", "transactionDate", "amount"]
@@ -40,6 +45,14 @@ const ROLE_LABELS: Record<ImportColumnRole, string> = {
   amount: "Amount",
   account: "Card or account",
   currency: "Currency column",
+}
+
+type ReviewItem = {
+  candidate: SubscriptionImportCandidate
+  selected: boolean
+  name: string
+  cost: string
+  startDate: string
 }
 
 function setMappingValue(
@@ -67,6 +80,7 @@ export function ImportCsvWizard() {
   const [mapping, setMapping] = useState<ImportColumnMapping>({})
   const [fallbackCurrency, setFallbackCurrency] = useState("USD")
   const [error, setError] = useState<string | null>(null)
+  const [reviewItems, setReviewItems] = useState<ReviewItem[]>([])
 
   const normalizedTransactions = useMemo(() => {
     if (!isMappingReady(mapping, fallbackCurrency)) {
@@ -79,6 +93,23 @@ export function ImportCsvWizard() {
       fallbackCurrency,
     })
   }, [fallbackCurrency, mapping, rows])
+
+  const candidates = useMemo(
+    () => detectMonthlySubscriptionCandidates(normalizedTransactions),
+    [normalizedTransactions]
+  )
+
+  useEffect(() => {
+    setReviewItems(
+      candidates.map((candidate) => ({
+        candidate,
+        selected: candidate.matchQuality === "likely",
+        name: candidate.suggestedName,
+        cost: candidate.amount.toFixed(2),
+        startDate: candidate.lastSeen.slice(0, 10),
+      }))
+    )
+  }, [candidates])
 
   async function handleFileChange(file: File | undefined) {
     setError(null)
@@ -104,10 +135,12 @@ export function ImportCsvWizard() {
     setHeaders(parsed.headers)
     setRows(parsed.rows)
     setMapping(guessImportColumnMapping(parsed.headers))
+    setReviewItems([])
   }
 
   const sampleRows = rows.slice(0, 5)
   const ready = isMappingReady(mapping, fallbackCurrency)
+  const selectedCount = reviewItems.filter((item) => item.selected).length
 
   return (
     <div className="space-y-6">
@@ -168,9 +201,12 @@ export function ImportCsvWizard() {
                       <SelectValue placeholder="Choose column" />
                     </SelectTrigger>
                     <SelectContent>
-                      {!REQUIRED_ROLES.includes(role) && (
-                        <SelectItem value={NO_COLUMN}>Do not use</SelectItem>
-                      )}
+                      <SelectItem
+                        value={NO_COLUMN}
+                        disabled={REQUIRED_ROLES.includes(role)}
+                      >
+                        {REQUIRED_ROLES.includes(role) ? "Choose column" : "Do not use"}
+                      </SelectItem>
                       {headers.map((header) => (
                         <SelectItem key={`${role}-${header}`} value={header}>
                           {header}
@@ -198,13 +234,164 @@ export function ImportCsvWizard() {
               <div className="flex items-center gap-2 font-medium">
                 <FileText className="size-4 text-muted-foreground" />
                 {ready
-                  ? `${normalizedTransactions.length} usable transactions found`
+                  ? `${normalizedTransactions.length} usable transactions, ${candidates.length} monthly matches`
                   : "Map merchant, date, amount, and currency"}
               </div>
               <p className="mt-1 text-muted-foreground">
-                Detection will run after these fields are ready.
+                Two matching charges are possible. Three or more are likely.
               </p>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {ready && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Review Detected Subscriptions</CardTitle>
+            <CardDescription>
+              Confirm the matches before anything is imported.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {reviewItems.length === 0 ? (
+              <div className="rounded-lg border border-border/70 bg-muted/30 p-6 text-sm text-muted-foreground">
+                No monthly subscription patterns found in the mapped rows.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {reviewItems.map((item, index) => (
+                  <div
+                    key={item.candidate.id}
+                    className="rounded-lg border border-border/70 p-4"
+                  >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={item.selected}
+                          onCheckedChange={(checked) =>
+                            setReviewItems((current) =>
+                              current.map((reviewItem, reviewIndex) =>
+                                reviewIndex === index
+                                  ? { ...reviewItem, selected: checked === true }
+                                  : reviewItem
+                              )
+                            )
+                          }
+                          aria-label={`Select ${item.name}`}
+                        />
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-medium">{item.name}</h3>
+                            <Badge
+                              variant={
+                                item.candidate.matchQuality === "likely"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                            >
+                              {item.candidate.matchQuality}
+                            </Badge>
+                            <Badge variant="outline">
+                              {Math.round(item.candidate.confidence * 100)}%
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {item.candidate.matchedTransactions.length} charges from{" "}
+                            {new Date(item.candidate.firstSeen).toLocaleDateString()} to{" "}
+                            {new Date(item.candidate.lastSeen).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[520px]">
+                        <div className="space-y-2">
+                          <Label htmlFor={`candidate-name-${index}`}>Name</Label>
+                          <Input
+                            id={`candidate-name-${index}`}
+                            value={item.name}
+                            onChange={(event) =>
+                              setReviewItems((current) =>
+                                current.map((reviewItem, reviewIndex) =>
+                                  reviewIndex === index
+                                    ? { ...reviewItem, name: event.target.value }
+                                    : reviewItem
+                                )
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`candidate-cost-${index}`}>Monthly cost</Label>
+                          <Input
+                            id={`candidate-cost-${index}`}
+                            type="number"
+                            step="0.01"
+                            value={item.cost}
+                            onChange={(event) =>
+                              setReviewItems((current) =>
+                                current.map((reviewItem, reviewIndex) =>
+                                  reviewIndex === index
+                                    ? { ...reviewItem, cost: event.target.value }
+                                    : reviewItem
+                                )
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor={`candidate-start-${index}`}>Start date</Label>
+                          <Input
+                            id={`candidate-start-${index}`}
+                            type="date"
+                            value={item.startDate}
+                            onChange={(event) =>
+                              setReviewItems((current) =>
+                                current.map((reviewItem, reviewIndex) =>
+                                  reviewIndex === index
+                                    ? { ...reviewItem, startDate: event.target.value }
+                                    : reviewItem
+                                )
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 overflow-x-auto rounded-md border">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Merchant text</TableHead>
+                            <TableHead>Amount</TableHead>
+                            <TableHead>Account</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {item.candidate.matchedTransactions.map((transaction) => (
+                            <TableRow key={`${item.candidate.id}-${transaction.date}`}>
+                              <TableCell>
+                                {new Date(transaction.date).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="max-w-72 truncate">
+                                {transaction.merchant}
+                              </TableCell>
+                              <TableCell>
+                                {formatCurrency(transaction.amount, transaction.currency)}
+                              </TableCell>
+                              <TableCell>
+                                {transaction.accountLabel ?? "Not mapped"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -243,7 +430,9 @@ export function ImportCsvWizard() {
       )}
 
       <div className="flex justify-end">
-        <Button disabled={!ready}>Review Detected Subscriptions</Button>
+        <Button disabled={selectedCount === 0}>
+          Import Selected ({selectedCount})
+        </Button>
       </div>
     </div>
   )
