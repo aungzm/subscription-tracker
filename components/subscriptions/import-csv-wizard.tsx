@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { FileText, UploadCloud } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { toast } from "@/components/ui/use-toast"
 import { parseCsv } from "@/lib/import-csv"
 import { formatCurrency } from "@/lib/currency"
 import {
@@ -74,6 +76,7 @@ function isMappingReady(mapping: ImportColumnMapping, fallbackCurrency: string) 
 }
 
 export function ImportCsvWizard() {
+  const router = useRouter()
   const [fileName, setFileName] = useState<string | null>(null)
   const [headers, setHeaders] = useState<string[]>([])
   const [rows, setRows] = useState<RawTransactionRow[]>([])
@@ -81,6 +84,7 @@ export function ImportCsvWizard() {
   const [fallbackCurrency, setFallbackCurrency] = useState("USD")
   const [error, setError] = useState<string | null>(null)
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([])
+  const [isImporting, setIsImporting] = useState(false)
 
   const normalizedTransactions = useMemo(() => {
     if (!isMappingReady(mapping, fallbackCurrency)) {
@@ -136,6 +140,69 @@ export function ImportCsvWizard() {
     setRows(parsed.rows)
     setMapping(guessImportColumnMapping(parsed.headers))
     setReviewItems([])
+  }
+
+  async function handleImportSelected() {
+    const selectedSubscriptions = reviewItems
+      .filter((item) => item.selected)
+      .map((item) => ({
+        name: item.name.trim(),
+        cost: Number(item.cost),
+        currency: item.candidate.currency,
+        billingFrequency: "monthly" as const,
+        startDate: item.startDate,
+        notes: `Imported from CSV after matching ${item.candidate.matchedTransactions.length} transactions.`,
+      }))
+      .filter(
+        (subscription) =>
+          subscription.name &&
+          Number.isFinite(subscription.cost) &&
+          subscription.cost > 0 &&
+          !Number.isNaN(new Date(subscription.startDate).getTime())
+      )
+
+    if (selectedSubscriptions.length === 0) {
+      toast({
+        title: "Nothing to import",
+        description: "Select at least one valid subscription first.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsImporting(true)
+
+    try {
+      const response = await fetch("/api/subscriptions/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscriptions: selectedSubscriptions }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Import failed")
+      }
+
+      toast({
+        title: "Subscriptions imported",
+        description: `${data.imported} subscription${data.imported === 1 ? "" : "s"} added.`,
+      })
+      router.push("/subscriptions")
+      router.refresh()
+    } catch (importError) {
+      toast({
+        title: "Import failed",
+        description:
+          importError instanceof Error
+            ? importError.message
+            : "Unable to import selected subscriptions.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsImporting(false)
+    }
   }
 
   const sampleRows = rows.slice(0, 5)
@@ -430,8 +497,12 @@ export function ImportCsvWizard() {
       )}
 
       <div className="flex justify-end">
-        <Button disabled={selectedCount === 0}>
-          Import Selected ({selectedCount})
+        <Button
+          type="button"
+          disabled={selectedCount === 0 || isImporting}
+          onClick={handleImportSelected}
+        >
+          {isImporting ? "Importing..." : `Import Selected (${selectedCount})`}
         </Button>
       </div>
     </div>
