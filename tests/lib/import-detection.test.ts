@@ -1,5 +1,6 @@
 import {
   detectMonthlySubscriptionCandidates,
+  getSubscriptionImportDuplicateWarning,
   guessImportColumnMapping,
   normalizeMerchantName,
   normalizeTransactionRows,
@@ -139,5 +140,54 @@ describe("CSV import detection", () => {
     )
 
     expect(candidates).toEqual([])
+  })
+
+  it("warns when a detected subscription looks like an existing one", () => {
+    const warning = getSubscriptionImportDuplicateWarning({
+      candidate: {
+        suggestedName: "Netflix",
+        amount: 15.99,
+        currency: "USD",
+      },
+      existingSubscriptions: [
+        {
+          id: "existing-1",
+          name: "Netflix",
+          cost: 16.49,
+          currency: "USD",
+          billingFrequency: "monthly",
+        },
+      ],
+    })
+
+    expect(warning).toBe("Looks like existing subscription: Netflix")
+  })
+
+  it("does not warn for different currencies or billing frequencies", () => {
+    const warning = getSubscriptionImportDuplicateWarning({
+      candidate: {
+        suggestedName: "Netflix",
+        amount: 15.99,
+        currency: "USD",
+      },
+      existingSubscriptions: [
+        {
+          id: "existing-1",
+          name: "Netflix",
+          cost: 15.99,
+          currency: "CAD",
+          billingFrequency: "monthly",
+        },
+        {
+          id: "existing-2",
+          name: "Netflix",
+          cost: 15.99,
+          currency: "USD",
+          billingFrequency: "yearly",
+        },
+      ],
+    })
+
+    expect(warning).toBeNull()
   })
 })

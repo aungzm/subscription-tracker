@@ -29,8 +29,10 @@ import { parseCsv } from "@/lib/import-csv"
 import { formatCurrency } from "@/lib/currency"
 import {
   detectMonthlySubscriptionCandidates,
+  getSubscriptionImportDuplicateWarning,
   guessImportColumnMapping,
   normalizeTransactionRows,
+  type ExistingSubscriptionForImport,
   type ImportColumnMapping,
   type ImportColumnRole,
   type RawTransactionRow,
@@ -85,6 +87,9 @@ export function ImportCsvWizard() {
   const [error, setError] = useState<string | null>(null)
   const [reviewItems, setReviewItems] = useState<ReviewItem[]>([])
   const [isImporting, setIsImporting] = useState(false)
+  const [existingSubscriptions, setExistingSubscriptions] = useState<
+    ExistingSubscriptionForImport[]
+  >([])
 
   const normalizedTransactions = useMemo(() => {
     if (!isMappingReady(mapping, fallbackCurrency)) {
@@ -105,15 +110,38 @@ export function ImportCsvWizard() {
 
   useEffect(() => {
     setReviewItems(
-      candidates.map((candidate) => ({
-        candidate,
-        selected: candidate.matchQuality === "likely",
-        name: candidate.suggestedName,
-        cost: candidate.amount.toFixed(2),
-        startDate: candidate.lastSeen.slice(0, 10),
-      }))
+      candidates.map((candidate) => {
+        const duplicateWarning = getSubscriptionImportDuplicateWarning({
+          candidate,
+          existingSubscriptions,
+        })
+
+        return {
+          candidate,
+          selected: candidate.matchQuality === "likely" && !duplicateWarning,
+          name: candidate.suggestedName,
+          cost: candidate.amount.toFixed(2),
+          startDate: candidate.lastSeen.slice(0, 10),
+        }
+      })
     )
-  }, [candidates])
+  }, [candidates, existingSubscriptions])
+
+  useEffect(() => {
+    fetch("/api/subscriptions")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Unable to load existing subscriptions")
+        }
+        return response.json()
+      })
+      .then((data: ExistingSubscriptionForImport[]) => {
+        setExistingSubscriptions(data)
+      })
+      .catch(() => {
+        setExistingSubscriptions([])
+      })
+  }, [])
 
   async function handleFileChange(file: File | undefined) {
     setError(null)
@@ -328,134 +356,19 @@ export function ImportCsvWizard() {
             ) : (
               <div className="space-y-3">
                 {reviewItems.map((item, index) => (
-                  <div
+                  <ReviewCandidateCard
                     key={item.candidate.id}
-                    className="rounded-lg border border-border/70 p-4"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={item.selected}
-                          onCheckedChange={(checked) =>
-                            setReviewItems((current) =>
-                              current.map((reviewItem, reviewIndex) =>
-                                reviewIndex === index
-                                  ? { ...reviewItem, selected: checked === true }
-                                  : reviewItem
-                              )
-                            )
-                          }
-                          aria-label={`Select ${item.name}`}
-                        />
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h3 className="font-medium">{item.name}</h3>
-                            <Badge
-                              variant={
-                                item.candidate.matchQuality === "likely"
-                                  ? "default"
-                                  : "secondary"
-                              }
-                            >
-                              {item.candidate.matchQuality}
-                            </Badge>
-                            <Badge variant="outline">
-                              {Math.round(item.candidate.confidence * 100)}%
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {item.candidate.matchedTransactions.length} charges from{" "}
-                            {new Date(item.candidate.firstSeen).toLocaleDateString()} to{" "}
-                            {new Date(item.candidate.lastSeen).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[520px]">
-                        <div className="space-y-2">
-                          <Label htmlFor={`candidate-name-${index}`}>Name</Label>
-                          <Input
-                            id={`candidate-name-${index}`}
-                            value={item.name}
-                            onChange={(event) =>
-                              setReviewItems((current) =>
-                                current.map((reviewItem, reviewIndex) =>
-                                  reviewIndex === index
-                                    ? { ...reviewItem, name: event.target.value }
-                                    : reviewItem
-                                )
-                              )
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor={`candidate-cost-${index}`}>Monthly cost</Label>
-                          <Input
-                            id={`candidate-cost-${index}`}
-                            type="number"
-                            step="0.01"
-                            value={item.cost}
-                            onChange={(event) =>
-                              setReviewItems((current) =>
-                                current.map((reviewItem, reviewIndex) =>
-                                  reviewIndex === index
-                                    ? { ...reviewItem, cost: event.target.value }
-                                    : reviewItem
-                                )
-                              )
-                            }
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor={`candidate-start-${index}`}>Start date</Label>
-                          <Input
-                            id={`candidate-start-${index}`}
-                            type="date"
-                            value={item.startDate}
-                            onChange={(event) =>
-                              setReviewItems((current) =>
-                                current.map((reviewItem, reviewIndex) =>
-                                  reviewIndex === index
-                                    ? { ...reviewItem, startDate: event.target.value }
-                                    : reviewItem
-                                )
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 overflow-x-auto rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Merchant text</TableHead>
-                            <TableHead>Amount</TableHead>
-                            <TableHead>Account</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {item.candidate.matchedTransactions.map((transaction) => (
-                            <TableRow key={`${item.candidate.id}-${transaction.date}`}>
-                              <TableCell>
-                                {new Date(transaction.date).toLocaleDateString()}
-                              </TableCell>
-                              <TableCell className="max-w-72 truncate">
-                                {transaction.merchant}
-                              </TableCell>
-                              <TableCell>
-                                {formatCurrency(transaction.amount, transaction.currency)}
-                              </TableCell>
-                              <TableCell>
-                                {transaction.accountLabel ?? "Not mapped"}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
+                    item={item}
+                    index={index}
+                    existingSubscriptions={existingSubscriptions}
+                    onChange={(nextItem) =>
+                      setReviewItems((current) =>
+                        current.map((reviewItem, reviewIndex) =>
+                          reviewIndex === index ? nextItem : reviewItem
+                        )
+                      )
+                    }
+                  />
                 ))}
               </div>
             )}
@@ -504,6 +417,135 @@ export function ImportCsvWizard() {
         >
           {isImporting ? "Importing..." : `Import Selected (${selectedCount})`}
         </Button>
+      </div>
+    </div>
+  )
+}
+
+function ReviewCandidateCard({
+  item,
+  index,
+  existingSubscriptions,
+  onChange,
+}: {
+  item: ReviewItem
+  index: number
+  existingSubscriptions: ExistingSubscriptionForImport[]
+  onChange: (item: ReviewItem) => void
+}) {
+  const duplicateWarning = getSubscriptionImportDuplicateWarning({
+    candidate: {
+      ...item.candidate,
+      suggestedName: item.name,
+      amount: Number(item.cost),
+    },
+    existingSubscriptions,
+  })
+
+  return (
+    <div className="rounded-lg border border-border/70 p-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-start gap-3">
+          <Checkbox
+            checked={item.selected}
+            onCheckedChange={(checked) =>
+              onChange({ ...item, selected: checked === true })
+            }
+            aria-label={`Select ${item.name}`}
+          />
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="font-medium">{item.name}</h3>
+              <Badge
+                variant={
+                  item.candidate.matchQuality === "likely"
+                    ? "default"
+                    : "secondary"
+                }
+              >
+                {item.candidate.matchQuality}
+              </Badge>
+              <Badge variant="outline">
+                {Math.round(item.candidate.confidence * 100)}%
+              </Badge>
+              {duplicateWarning && (
+                <Badge variant="destructive">Duplicate?</Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {item.candidate.matchedTransactions.length} charges from{" "}
+              {new Date(item.candidate.firstSeen).toLocaleDateString()} to{" "}
+              {new Date(item.candidate.lastSeen).toLocaleDateString()}
+            </p>
+            {duplicateWarning && (
+              <p className="text-sm text-destructive">{duplicateWarning}</p>
+            )}
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[520px]">
+          <div className="space-y-2">
+            <Label htmlFor={`candidate-name-${index}`}>Name</Label>
+            <Input
+              id={`candidate-name-${index}`}
+              value={item.name}
+              onChange={(event) =>
+                onChange({ ...item, name: event.target.value })
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`candidate-cost-${index}`}>Monthly cost</Label>
+            <Input
+              id={`candidate-cost-${index}`}
+              type="number"
+              step="0.01"
+              value={item.cost}
+              onChange={(event) =>
+                onChange({ ...item, cost: event.target.value })
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`candidate-start-${index}`}>Start date</Label>
+            <Input
+              id={`candidate-start-${index}`}
+              type="date"
+              value={item.startDate}
+              onChange={(event) =>
+                onChange({ ...item, startDate: event.target.value })
+              }
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 overflow-x-auto rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>Merchant text</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Account</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {item.candidate.matchedTransactions.map((transaction) => (
+              <TableRow key={`${item.candidate.id}-${transaction.date}`}>
+                <TableCell>
+                  {new Date(transaction.date).toLocaleDateString()}
+                </TableCell>
+                <TableCell className="max-w-72 truncate">
+                  {transaction.merchant}
+                </TableCell>
+                <TableCell>
+                  {formatCurrency(transaction.amount, transaction.currency)}
+                </TableCell>
+                <TableCell>{transaction.accountLabel ?? "Not mapped"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )

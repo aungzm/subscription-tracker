@@ -32,6 +32,14 @@ export type SubscriptionImportCandidate = {
   matchedTransactions: ImportedTransaction[]
 }
 
+export type ExistingSubscriptionForImport = {
+  id: string
+  name: string
+  cost: number
+  currency: string
+  billingFrequency: string
+}
+
 const COLUMN_HINTS: Record<ImportColumnRole, string[]> = {
   merchant: ["merchant", "description", "payee", "name", "details", "memo"],
   transactionDate: ["transaction date", "posted date", "post date", "date"],
@@ -264,4 +272,34 @@ export function detectMonthlySubscriptionCandidates(
   }
 
   return candidates.sort((a, b) => b.confidence - a.confidence)
+}
+
+export function getSubscriptionImportDuplicateWarning(params: {
+  candidate: Pick<SubscriptionImportCandidate, "suggestedName" | "amount" | "currency">
+  existingSubscriptions: ExistingSubscriptionForImport[]
+}) {
+  const candidateName = normalizeMerchantName(params.candidate.suggestedName)
+
+  const match = params.existingSubscriptions.find((subscription) => {
+    if (subscription.billingFrequency !== "monthly") {
+      return false
+    }
+
+    if (subscription.currency.toUpperCase() !== params.candidate.currency.toUpperCase()) {
+      return false
+    }
+
+    const existingName = normalizeMerchantName(subscription.name)
+    const namesMatch =
+      existingName === candidateName ||
+      existingName.includes(candidateName) ||
+      candidateName.includes(existingName)
+    const amountTolerance = Math.max(1, params.candidate.amount * 0.05)
+    const amountMatches =
+      Math.abs(subscription.cost - params.candidate.amount) <= amountTolerance
+
+    return namesMatch && amountMatches
+  })
+
+  return match ? `Looks like existing subscription: ${match.name}` : null
 }
