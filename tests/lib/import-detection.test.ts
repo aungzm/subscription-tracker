@@ -2,6 +2,7 @@ import {
   detectMonthlySubscriptionCandidates,
   getSubscriptionImportDuplicateWarning,
   guessImportColumnMapping,
+  inferPaymentMethodFromAccountLabel,
   normalizeMerchantName,
   normalizeTransactionRows,
   parseImportAmount,
@@ -189,5 +190,35 @@ describe("CSV import detection", () => {
     })
 
     expect(warning).toBeNull()
+  })
+
+  it("infers card details from account labels when the network is present", () => {
+    expect(inferPaymentMethodFromAccountLabel("Visa ending 1234")).toEqual({
+      name: "Visa ending 1234",
+      type: "CREDIT_CARD",
+      lastFour: "1234",
+    })
+
+    expect(inferPaymentMethodFromAccountLabel("Mastercard debit ...5678")).toEqual({
+      name: "Mastercard ending 5678",
+      type: "DEBIT_CARD",
+      lastFour: "5678",
+    })
+  })
+
+  it("does not infer a card network from last four digits alone", () => {
+    expect(inferPaymentMethodFromAccountLabel("Account 1234")).toEqual({
+      name: "Card ending 1234",
+      type: "CREDIT_CARD",
+      lastFour: "1234",
+    })
+  })
+
+  it("infers non-card payment labels", () => {
+    expect(inferPaymentMethodFromAccountLabel("PayPal balance")).toEqual({
+      name: "PayPal",
+      type: "PAYPAL",
+      lastFour: null,
+    })
   })
 })

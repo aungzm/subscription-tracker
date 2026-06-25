@@ -31,8 +31,10 @@ import {
   detectMonthlySubscriptionCandidates,
   getSubscriptionImportDuplicateWarning,
   guessImportColumnMapping,
+  inferPaymentMethodFromAccountLabel,
   normalizeTransactionRows,
   type ExistingSubscriptionForImport,
+  type ImportedPaymentMethodSuggestion,
   type ImportColumnMapping,
   type ImportColumnRole,
   type RawTransactionRow,
@@ -42,6 +44,8 @@ import {
 const REQUIRED_ROLES: ImportColumnRole[] = ["merchant", "transactionDate", "amount"]
 const OPTIONAL_ROLES: ImportColumnRole[] = ["account", "currency"]
 const NO_COLUMN = "__none__"
+const NO_PAYMENT_METHOD = "__none__"
+const CREATE_PAYMENT_METHOD = "__create__"
 
 const ROLE_LABELS: Record<ImportColumnRole, string> = {
   merchant: "Merchant",
@@ -57,6 +61,15 @@ type ReviewItem = {
   name: string
   cost: string
   startDate: string
+  paymentMethodChoice: string
+  paymentMethodSuggestion: ImportedPaymentMethodSuggestion | null
+}
+
+type ExistingPaymentMethod = {
+  id: string
+  name: string
+  type: ImportedPaymentMethodSuggestion["type"]
+  lastFour: string | null
 }
 
 function setMappingValue(
@@ -77,6 +90,27 @@ function isMappingReady(mapping: ImportColumnMapping, fallbackCurrency: string) 
   return hasRequiredColumns && hasCurrency
 }
 
+function getPaymentMethodSuggestionKey(suggestion: ImportedPaymentMethodSuggestion) {
+  return [suggestion.name, suggestion.type, suggestion.lastFour ?? ""].join("|")
+}
+
+function findMatchingPaymentMethod(
+  suggestion: ImportedPaymentMethodSuggestion,
+  paymentMethods: ExistingPaymentMethod[]
+) {
+  return paymentMethods.find((paymentMethod) => {
+    if (paymentMethod.type !== suggestion.type) {
+      return false
+    }
+
+    if (suggestion.lastFour && paymentMethod.lastFour === suggestion.lastFour) {
+      return true
+    }
+
+    return paymentMethod.name.toLowerCase() === suggestion.name.toLowerCase()
+  })
+}
+
 export function ImportCsvWizard() {
   const router = useRouter()
   const [fileName, setFileName] = useState<string | null>(null)
@@ -90,6 +124,7 @@ export function ImportCsvWizard() {
   const [existingSubscriptions, setExistingSubscriptions] = useState<
     ExistingSubscriptionForImport[]
   >([])
+  const [paymentMethods, setPaymentMethods] = useState<ExistingPaymentMethod[]>([])
 
   const normalizedTransactions = useMemo(() => {
     if (!isMappingReady(mapping, fallbackCurrency)) {
@@ -115,6 +150,13 @@ export function ImportCsvWizard() {
           candidate,
           existingSubscriptions,
         })
+        const paymentMethodSuggestion = inferPaymentMethodFromAccountLabel(
+          candidate.matchedTransactions.find((transaction) => transaction.accountLabel)
+            ?.accountLabel
+        )
+        const matchingPaymentMethod = paymentMethodSuggestion
+          ? findMatchingPaymentMethod(paymentMethodSuggestion, paymentMethods)
+          : null
 
         return {
           candidate,
@@ -122,10 +164,14 @@ export function ImportCsvWizard() {
           name: candidate.suggestedName,
           cost: candidate.amount.toFixed(2),
           startDate: candidate.lastSeen.slice(0, 10),
+          paymentMethodChoice:
+            matchingPaymentMethod?.id ??
+            (paymentMethodSuggestion ? CREATE_PAYMENT_METHOD : NO_PAYMENT_METHOD),
+          paymentMethodSuggestion,
         }
       })
     )
-  }, [candidates, existingSubscriptions])
+  }, [candidates, existingSubscriptions, paymentMethods])
 
   useEffect(() => {
     fetch("/api/subscriptions")
@@ -140,6 +186,22 @@ export function ImportCsvWizard() {
       })
       .catch(() => {
         setExistingSubscriptions([])
+      })
+  }, [])
+
+  useEffect(() => {
+    fetch("/api/payment")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Unable to load payment methods")
+        }
+        return response.json()
+      })
+      .then((data: ExistingPaymentMethod[]) => {
+        setPaymentMethods(data)
+      })
+      .catch(() => {
+        setPaymentMethods([])
       })
   }, [])
 
@@ -171,25 +233,9 @@ export function ImportCsvWizard() {
   }
 
   async function handleImportSelected() {
-    const selectedSubscriptions = reviewItems
-      .filter((item) => item.selected)
-      .map((item) => ({
-        name: item.name.trim(),
-        cost: Number(item.cost),
-        currency: item.candidate.currency,
-        billingFrequency: "monthly" as const,
-        startDate: item.startDate,
-        notes: `Imported from CSV after matching ${item.candidate.matchedTransactions.length} transactions.`,
-      }))
-      .filter(
-        (subscription) =>
-          subscription.name &&
-          Number.isFinite(subscription.cost) &&
-          subscription.cost > 0 &&
-          !Number.isNaN(new Date(subscription.startDate).getTime())
-      )
+    const selectedItems = reviewItems.filter((item) => item.selected)
 
-    if (selectedSubscriptions.length === 0) {
+    if (selectedItems.length === 0) {
       toast({
         title: "Nothing to import",
         description: "Select at least one valid subscription first.",
@@ -201,6 +247,32 @@ export function ImportCsvWizard() {
     setIsImporting(true)
 
     try {
+      const paymentMethodIds = await resolvePaymentMethodChoices(selectedItems)
+      const selectedSubscriptions = selectedItems
+        .map((item) => {
+          const paymentMethod = paymentMethodIds.get(item.candidate.id)
+          return {
+            name: item.name.trim(),
+            cost: Number(item.cost),
+            currency: item.candidate.currency,
+            billingFrequency: "monthly" as const,
+            startDate: item.startDate,
+            paymentMethod,
+            notes: `Imported from CSV after matching ${item.candidate.matchedTransactions.length} transactions.`,
+          }
+        })
+        .filter(
+          (subscription) =>
+            subscription.name &&
+            Number.isFinite(subscription.cost) &&
+            subscription.cost > 0 &&
+            !Number.isNaN(new Date(subscription.startDate).getTime())
+        )
+
+      if (selectedSubscriptions.length === 0) {
+        throw new Error("Select at least one valid subscription first.")
+      }
+
       const response = await fetch("/api/subscriptions/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -231,6 +303,51 @@ export function ImportCsvWizard() {
     } finally {
       setIsImporting(false)
     }
+  }
+
+  async function resolvePaymentMethodChoices(items: ReviewItem[]) {
+    const ids = new Map<string, string | undefined>()
+    const createdByKey = new Map<string, string>()
+
+    for (const item of items) {
+      if (item.paymentMethodChoice === NO_PAYMENT_METHOD) {
+        ids.set(item.candidate.id, undefined)
+        continue
+      }
+
+      if (item.paymentMethodChoice !== CREATE_PAYMENT_METHOD) {
+        ids.set(item.candidate.id, item.paymentMethodChoice)
+        continue
+      }
+
+      if (!item.paymentMethodSuggestion) {
+        ids.set(item.candidate.id, undefined)
+        continue
+      }
+
+      const key = getPaymentMethodSuggestionKey(item.paymentMethodSuggestion)
+      const alreadyCreatedId = createdByKey.get(key)
+      if (alreadyCreatedId) {
+        ids.set(item.candidate.id, alreadyCreatedId)
+        continue
+      }
+
+      const response = await fetch("/api/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item.paymentMethodSuggestion),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data?.error ?? "Unable to create payment method")
+      }
+
+      createdByKey.set(key, data.id)
+      ids.set(item.candidate.id, data.id)
+    }
+
+    return ids
   }
 
   const sampleRows = rows.slice(0, 5)
@@ -361,6 +478,7 @@ export function ImportCsvWizard() {
                     item={item}
                     index={index}
                     existingSubscriptions={existingSubscriptions}
+                    paymentMethods={paymentMethods}
                     onChange={(nextItem) =>
                       setReviewItems((current) =>
                         current.map((reviewItem, reviewIndex) =>
@@ -426,11 +544,13 @@ function ReviewCandidateCard({
   item,
   index,
   existingSubscriptions,
+  paymentMethods,
   onChange,
 }: {
   item: ReviewItem
   index: number
   existingSubscriptions: ExistingSubscriptionForImport[]
+  paymentMethods: ExistingPaymentMethod[]
   onChange: (item: ReviewItem) => void
 }) {
   const duplicateWarning = getSubscriptionImportDuplicateWarning({
@@ -482,7 +602,7 @@ function ReviewCandidateCard({
             )}
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[520px]">
+        <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[640px] lg:grid-cols-4">
           <div className="space-y-2">
             <Label htmlFor={`candidate-name-${index}`}>Name</Label>
             <Input
@@ -515,6 +635,32 @@ function ReviewCandidateCard({
                 onChange({ ...item, startDate: event.target.value })
               }
             />
+          </div>
+          <div className="space-y-2">
+            <Label>Payment</Label>
+            <Select
+              value={item.paymentMethodChoice}
+              onValueChange={(value) =>
+                onChange({ ...item, paymentMethodChoice: value })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose payment" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_PAYMENT_METHOD}>Do not assign</SelectItem>
+                {item.paymentMethodSuggestion && (
+                  <SelectItem value={CREATE_PAYMENT_METHOD}>
+                    Create {item.paymentMethodSuggestion.name}
+                  </SelectItem>
+                )}
+                {paymentMethods.map((paymentMethod) => (
+                  <SelectItem key={paymentMethod.id} value={paymentMethod.id}>
+                    {paymentMethod.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </div>

@@ -40,6 +40,20 @@ export type ExistingSubscriptionForImport = {
   billingFrequency: string
 }
 
+export type ImportedPaymentMethodSuggestion = {
+  name: string
+  type:
+    | "CREDIT_CARD"
+    | "DEBIT_CARD"
+    | "PAYPAL"
+    | "APPLE_PAY"
+    | "GOOGLE_PAY"
+    | "CRYPTO"
+    | "BANK_TRANSFER"
+    | "OTHER"
+  lastFour: string | null
+}
+
 const COLUMN_HINTS: Record<ImportColumnRole, string[]> = {
   merchant: ["merchant", "description", "payee", "name", "details", "memo"],
   transactionDate: ["transaction date", "posted date", "post date", "date"],
@@ -302,4 +316,72 @@ export function getSubscriptionImportDuplicateWarning(params: {
   })
 
   return match ? `Looks like existing subscription: ${match.name}` : null
+}
+
+export function inferPaymentMethodFromAccountLabel(
+  accountLabel: string | null | undefined
+): ImportedPaymentMethodSuggestion | null {
+  const label = toText(accountLabel)
+
+  if (!label) {
+    return null
+  }
+
+  const normalized = label.toLowerCase()
+  const lastFour = label.match(/\b(\d{4})\b/g)?.at(-1) ?? null
+
+  if (normalized.includes("paypal")) {
+    return { name: "PayPal", type: "PAYPAL", lastFour: null }
+  }
+
+  if (normalized.includes("apple pay")) {
+    return { name: "Apple Pay", type: "APPLE_PAY", lastFour }
+  }
+
+  if (normalized.includes("google pay")) {
+    return { name: "Google Pay", type: "GOOGLE_PAY", lastFour }
+  }
+
+  if (normalized.includes("bank") || normalized.includes("checking")) {
+    return {
+      name: lastFour ? `Bank account ending ${lastFour}` : "Bank account",
+      type: "BANK_TRANSFER",
+      lastFour,
+    }
+  }
+
+  const isDebit = normalized.includes("debit")
+  const cardType = isDebit ? "DEBIT_CARD" : "CREDIT_CARD"
+  const network =
+    normalized.includes("american express") || normalized.includes("amex")
+      ? "Amex"
+      : normalized.includes("mastercard") || normalized.includes("master card")
+        ? "Mastercard"
+        : normalized.includes("discover")
+          ? "Discover"
+          : normalized.includes("visa")
+            ? "Visa"
+            : null
+
+  if (network) {
+    return {
+      name: lastFour ? `${network} ending ${lastFour}` : network,
+      type: cardType,
+      lastFour,
+    }
+  }
+
+  if (lastFour) {
+    return {
+      name: `Card ending ${lastFour}`,
+      type: cardType,
+      lastFour,
+    }
+  }
+
+  return {
+    name: label,
+    type: "OTHER",
+    lastFour: null,
+  }
 }
