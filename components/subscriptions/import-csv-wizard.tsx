@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { FileText, UploadCloud } from "lucide-react"
+import { AlertTriangle, FileText, UploadCloud } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -29,6 +30,7 @@ import { parseCsv } from "@/lib/import-csv"
 import { formatCurrency } from "@/lib/currency"
 import {
   detectMonthlySubscriptionCandidates,
+  getImportDateRangeSummary,
   getSubscriptionImportDuplicateWarning,
   guessImportColumnMapping,
   inferPaymentMethodFromAccountLabel,
@@ -113,7 +115,7 @@ function findMatchingPaymentMethod(
 
 export function ImportCsvWizard() {
   const router = useRouter()
-  const [fileName, setFileName] = useState<string | null>(null)
+  const [fileNames, setFileNames] = useState<string[]>([])
   const [headers, setHeaders] = useState<string[]>([])
   const [rows, setRows] = useState<RawTransactionRow[]>([])
   const [mapping, setMapping] = useState<ImportColumnMapping>({})
@@ -142,6 +144,10 @@ export function ImportCsvWizard() {
     () => detectMonthlySubscriptionCandidates(normalizedTransactions),
     [normalizedTransactions]
   )
+  const dateRangeSummary = useMemo(
+    () => getImportDateRangeSummary(normalizedTransactions),
+    [normalizedTransactions]
+  )
 
   useEffect(() => {
     setReviewItems(
@@ -160,7 +166,10 @@ export function ImportCsvWizard() {
 
         return {
           candidate,
-          selected: candidate.matchQuality === "likely" && !duplicateWarning,
+          selected:
+            candidate.matchQuality === "likely" &&
+            !duplicateWarning &&
+            (dateRangeSummary?.hasEnoughRangeForMonthlyDetection ?? true),
           name: candidate.suggestedName,
           cost: candidate.amount.toFixed(2),
           startDate: candidate.lastSeen.slice(0, 10),
@@ -171,7 +180,7 @@ export function ImportCsvWizard() {
         }
       })
     )
-  }, [candidates, existingSubscriptions, paymentMethods])
+  }, [candidates, dateRangeSummary, existingSubscriptions, paymentMethods])
 
   useEffect(() => {
     fetch("/api/subscriptions")
@@ -205,30 +214,44 @@ export function ImportCsvWizard() {
       })
   }, [])
 
-  async function handleFileChange(file: File | undefined) {
+  async function handleFileChange(fileList: FileList | null | undefined) {
     setError(null)
 
-    if (!file) {
+    const files = Array.from(fileList ?? [])
+
+    if (files.length === 0) {
       return
     }
 
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      setError("Choose a CSV file.")
+    if (files.some((file) => !file.name.toLowerCase().endsWith(".csv"))) {
+      setError("Choose CSV files only.")
       return
     }
 
-    const text = await file.text()
-    const parsed = parseCsv(text)
+    const parsedFiles = await Promise.all(
+      files.map(async (file) => ({
+        name: file.name,
+        parsed: parseCsv(await file.text()),
+      }))
+    )
 
-    if (parsed.headers.length === 0 || parsed.rows.length === 0) {
-      setError("That CSV does not have readable rows.")
+    const readableFiles = parsedFiles.filter(
+      (file) => file.parsed.headers.length > 0 && file.parsed.rows.length > 0
+    )
+
+    if (readableFiles.length === 0) {
+      setError("Those CSV files do not have readable rows.")
       return
     }
 
-    setFileName(file.name)
-    setHeaders(parsed.headers)
-    setRows(parsed.rows)
-    setMapping(guessImportColumnMapping(parsed.headers))
+    const nextHeaders = Array.from(
+      new Set(readableFiles.flatMap((file) => file.parsed.headers))
+    )
+
+    setFileNames(readableFiles.map((file) => file.name))
+    setHeaders(nextHeaders)
+    setRows(readableFiles.flatMap((file) => file.parsed.rows))
+    setMapping(guessImportColumnMapping(nextHeaders))
     setReviewItems([])
   }
 
@@ -370,17 +393,20 @@ export function ImportCsvWizard() {
           >
             <UploadCloud className="size-8 text-muted-foreground" />
             <span className="font-medium">
-              {fileName ? fileName : "Choose a CSV file"}
+              {fileNames.length > 0
+                ? `${fileNames.length} file${fileNames.length === 1 ? "" : "s"} selected`
+                : "Choose CSV files"}
             </span>
             <span className="text-sm text-muted-foreground">
-              The raw file is parsed in this browser session.
+              Upload two or more months when you can. The raw files stay in this browser session.
             </span>
             <Input
               id="csv-file"
               type="file"
               accept=".csv,text/csv"
+              multiple
               className="sr-only"
-              onChange={(event) => handleFileChange(event.target.files?.[0])}
+              onChange={(event) => handleFileChange(event.target.files)}
             />
           </Label>
           {error && <p className="text-sm text-destructive">{error}</p>}
@@ -453,6 +479,29 @@ export function ImportCsvWizard() {
                 Two matching charges are possible. Three or more are likely.
               </p>
             </div>
+            {ready && dateRangeSummary && (
+              <Alert
+                variant={
+                  dateRangeSummary.hasEnoughRangeForMonthlyDetection
+                    ? "default"
+                    : "destructive"
+                }
+              >
+                <AlertTriangle className="size-4" />
+                <AlertTitle>
+                  {dateRangeSummary.hasEnoughRangeForMonthlyDetection
+                    ? "Date range looks usable"
+                    : "Upload more history if you have it"}
+                </AlertTitle>
+                <AlertDescription>
+                  The mapped transactions cover {dateRangeSummary.daySpan} days, from{" "}
+                  {new Date(dateRangeSummary.firstTransactionDate).toLocaleDateString()} to{" "}
+                  {new Date(dateRangeSummary.lastTransactionDate).toLocaleDateString()}.
+                  {!dateRangeSummary.hasEnoughRangeForMonthlyDetection &&
+                    " One month of data can miss subscriptions or mark normal purchases as recurring, so matches will stay unchecked by default."}
+                </AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
       )}

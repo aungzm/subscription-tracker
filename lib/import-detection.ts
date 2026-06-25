@@ -32,6 +32,13 @@ export type SubscriptionImportCandidate = {
   matchedTransactions: ImportedTransaction[]
 }
 
+export type ImportDateRangeSummary = {
+  firstTransactionDate: string
+  lastTransactionDate: string
+  daySpan: number
+  hasEnoughRangeForMonthlyDetection: boolean
+}
+
 export type ExistingSubscriptionForImport = {
   id: string
   name: string
@@ -286,6 +293,34 @@ export function detectMonthlySubscriptionCandidates(
   }
 
   return candidates.sort((a, b) => b.confidence - a.confidence)
+}
+
+export function getImportDateRangeSummary(
+  transactions: ImportedTransaction[]
+): ImportDateRangeSummary | null {
+  if (transactions.length === 0) {
+    return null
+  }
+
+  const sortedDates = transactions
+    .map((transaction) => new Date(transaction.date))
+    .filter((date) => !Number.isNaN(date.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime())
+
+  if (sortedDates.length === 0) {
+    return null
+  }
+
+  const first = sortedDates[0]
+  const last = sortedDates[sortedDates.length - 1]
+  const daySpan = Math.max(0, daysBetween(first, last))
+
+  return {
+    firstTransactionDate: first.toISOString(),
+    lastTransactionDate: last.toISOString(),
+    daySpan,
+    hasEnoughRangeForMonthlyDetection: daySpan >= 60,
+  }
 }
 
 export function getSubscriptionImportDuplicateWarning(params: {

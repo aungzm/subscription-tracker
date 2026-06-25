@@ -1,5 +1,6 @@
 import {
   detectMonthlySubscriptionCandidates,
+  getImportDateRangeSummary,
   getSubscriptionImportDuplicateWarning,
   guessImportColumnMapping,
   inferPaymentMethodFromAccountLabel,
@@ -219,6 +220,50 @@ describe("CSV import detection", () => {
       name: "PayPal",
       type: "PAYPAL",
       lastFour: null,
+    })
+  })
+
+  it("flags transaction ranges that are too short for reliable monthly detection", () => {
+    const summary = getImportDateRangeSummary(
+      normalizeTransactionRows({
+        fallbackCurrency: "USD",
+        mapping: {
+          merchant: "Description",
+          transactionDate: "Date",
+          amount: "Amount",
+        },
+        rows: [
+          { Date: "2026-01-01", Description: "Netflix", Amount: "15.99" },
+          { Date: "2026-01-31", Description: "Spotify", Amount: "10.99" },
+        ],
+      })
+    )
+
+    expect(summary).toMatchObject({
+      daySpan: 30,
+      hasEnoughRangeForMonthlyDetection: false,
+    })
+  })
+
+  it("accepts wider transaction ranges for monthly detection", () => {
+    const summary = getImportDateRangeSummary(
+      normalizeTransactionRows({
+        fallbackCurrency: "USD",
+        mapping: {
+          merchant: "Description",
+          transactionDate: "Date",
+          amount: "Amount",
+        },
+        rows: [
+          { Date: "2026-01-01", Description: "Netflix", Amount: "15.99" },
+          { Date: "2026-03-05", Description: "Spotify", Amount: "10.99" },
+        ],
+      })
+    )
+
+    expect(summary).toMatchObject({
+      daySpan: 63,
+      hasEnoughRangeForMonthlyDetection: true,
     })
   })
 })
