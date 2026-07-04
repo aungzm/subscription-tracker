@@ -86,8 +86,16 @@ export function parseCsv(text: string): ParsedCsv {
     return { headers: [], rows: [] }
   }
 
-  const headers = parseCsvLine(lines[0]).map((header) => header.trim())
-  const rows = lines.slice(1).map((line) => {
+  const headerIndex = lines.findIndex(
+    (line) => parseCsvLine(line).filter(Boolean).length > 1
+  )
+
+  if (headerIndex === -1) {
+    return { headers: [], rows: [] }
+  }
+
+  const headers = parseCsvLine(lines[headerIndex]).map((header) => header.trim())
+  const rows = lines.slice(headerIndex + 1).map((line) => {
     const cells = parseCsvLine(line)
     return headers.reduce<RawTransactionRow>((row, header, index) => {
       row[header] = cells[index] ?? ""

@@ -38,4 +38,24 @@ describe("CSV import parsing", () => {
     expect(parsed.rows).toHaveLength(1)
     expect(parsed.rows[0].Description).toBe("Line one\nLine two")
   })
+
+  it("skips statement preface lines before the real header", () => {
+    const parsed = parseCsv(
+      "Following data is valid as of 20260831182703:\n\nItem #,Card #,Transaction Date,Posting Date,Transaction Amount,Description\n1,'4000000000001234',20260603,20260604,12.99,Example Merchant"
+    )
+
+    expect(parsed.headers).toEqual([
+      "Item #",
+      "Card #",
+      "Transaction Date",
+      "Posting Date",
+      "Transaction Amount",
+      "Description",
+    ])
+    expect(parsed.rows[0]).toMatchObject({
+      "Item #": "1",
+      "Transaction Date": "20260603",
+      Description: "Example Merchant",
+    })
+  })
 })

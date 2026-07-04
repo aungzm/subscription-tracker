@@ -94,6 +94,17 @@ function toText(value: string | number | null | undefined) {
   return value === null || value === undefined ? "" : String(value).trim()
 }
 
+function parseImportDate(value: string) {
+  const compactDate = value.match(/^(\d{4})(\d{2})(\d{2})$/)
+
+  if (compactDate) {
+    const [, year, month, day] = compactDate
+    return new Date(Number(year), Number(month) - 1, Number(day))
+  }
+
+  return new Date(value)
+}
+
 export function guessImportColumnMapping(headers: string[]): ImportColumnMapping {
   const normalizedHeaders = headers.map((header) => ({
     original: header,
@@ -185,7 +196,7 @@ export function normalizeTransactionRows(params: {
     const merchant = toText(getCell(row, mapping.merchant))
     const normalizedMerchant = normalizeMerchantName(merchant)
     const dateValue = toText(getCell(row, mapping.transactionDate))
-    const date = new Date(dateValue)
+    const date = parseImportDate(dateValue)
     const amount = parseImportAmount(getCell(row, mapping.amount))
     const rowCurrency = toText(getCell(row, mapping.currency))
     const currency = (rowCurrency || fallbackCurrency).toUpperCase()

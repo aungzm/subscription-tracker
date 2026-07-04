@@ -78,6 +78,34 @@ describe("CSV import detection", () => {
     })
   })
 
+  it("supports compact YYYYMMDD statement dates", () => {
+    const [transaction] = normalizeTransactionRows({
+      fallbackCurrency: "CAD",
+      mapping: {
+        merchant: "Description",
+        transactionDate: "Transaction Date",
+        amount: "Transaction Amount",
+        account: "Card #",
+      },
+      rows: [
+        {
+          "Transaction Date": "20260603",
+          Description: "OPENROUTER INC NEW YORK NY",
+          "Transaction Amount": "22.62",
+          "Card #": "'4000000000001234'",
+        },
+      ],
+    })
+
+    expect(transaction).toMatchObject({
+      merchant: "OPENROUTER INC NEW YORK NY",
+      amount: 22.62,
+      accountLabel: "'4000000000001234'",
+      currency: "CAD",
+    })
+    expect(new Date(transaction.date).toISOString()).toContain("2026-06-03")
+  })
+
   it("marks two monthly charges as possible", () => {
     const [candidate] = detectMonthlySubscriptionCandidates(
       normalizeTransactionRows({
