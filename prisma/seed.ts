@@ -203,7 +203,6 @@ async function main() {
   const aliceUpcomingTwoDays = nextMonthlyRenewal(2);
   const aliceUpcomingThreeDays = nextMonthlyRenewal(3);
   const aliceUpcomingSixDays = nextMonthlyRenewal(6);
-  const aliceUpcomingTenDays = nextMonthlyRenewal(10);
   const aliceUpcomingTwelveDays = nextMonthlyRenewal(12);
   const aliceYearlyFourDays = nextYearlyRenewal(4);
   const aliceYearlyTwentyTwoDays = nextYearlyRenewal(22);
@@ -217,10 +216,7 @@ async function main() {
     ,
     classpass,
     xboxGamePass,
-    ,
-    ,
     wsj,
-    ,
     youtubePremium,
     ,
     linear,
@@ -299,34 +295,6 @@ async function main() {
     }),
     prisma.subscription.create({
       data: {
-        name: "GitHub Copilot",
-        cost: 10,
-        currency: "USD",
-        billingFrequency: "monthly",
-        startDate: yearsAgoFrom(aliceUpcomingTenDays, 1),
-        endDate: null,
-        notes: "Developer tooling subscription for a SaaS-heavy showcase.",
-        userId: alice.id,
-        categoryId: aliceProductivity.id,
-        paymentMethodId: aliceBusinessBank.id,
-      },
-    }),
-    prisma.subscription.create({
-      data: {
-        name: "Figma Professional",
-        cost: 16,
-        currency: "USD",
-        billingFrequency: "monthly",
-        startDate: monthsAgo(5, 18),
-        endDate: null,
-        notes: "Recent subscription so it appears in the recent activity card.",
-        userId: alice.id,
-        categoryId: aliceProductivity.id,
-        paymentMethodId: aliceBusinessBank.id,
-      },
-    }),
-    prisma.subscription.create({
-      data: {
         name: "Wall Street Journal",
         cost: 38.99,
         currency: "USD",
@@ -337,20 +305,6 @@ async function main() {
         userId: alice.id,
         categoryId: aliceNews.id,
         paymentMethodId: aliceVisa.id,
-      },
-    }),
-    prisma.subscription.create({
-      data: {
-        name: "Disney+ Legacy",
-        cost: 13.99,
-        currency: "USD",
-        billingFrequency: "monthly",
-        startDate: withTime(new Date("2022-03-09"), 9),
-        endDate: withTime(new Date("2024-11-09"), 9),
-        notes: "Cancelled service kept for historical trend lines.",
-        userId: alice.id,
-        categoryId: aliceStreaming.id,
-        paymentMethodId: alicePayPal.id,
       },
     }),
     prisma.subscription.create({
