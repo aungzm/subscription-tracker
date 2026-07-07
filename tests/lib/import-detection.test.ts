@@ -129,10 +129,12 @@ describe("CSV import detection", () => {
 
     const candidates = detectMonthlySubscriptionCandidates(transactions)
 
+    expect(parsed.rows).toHaveLength(60)
     expect(getImportDateRangeSummary(transactions)).toMatchObject({
       daySpan: 88,
       hasEnoughRangeForMonthlyDetection: true,
     })
+    expect(candidates).toHaveLength(4)
     expect(candidates.map((candidate) => candidate.suggestedName)).toEqual([
       "Spotify Canada Toronto",
       "Openrouter Inc New York",
