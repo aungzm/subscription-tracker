@@ -105,13 +105,22 @@ Notes:
    pnpm db:seed
    ```
 
-5. Start the development server:
+5. To test CSV import, use `public/samples/credit-card-statement-3-months.csv`.
+   It uses a common credit card export shape with these mappings:
+
+   * Merchant name: `Description`
+   * Transaction date: `Transaction Date`
+   * Amount: `Transaction Amount`
+   * Card/account: `Card #`
+   * Currency: `CAD`
+
+6. Start the development server:
 
    ```bash
    pnpm dev
    ```
 
-6. The app will be available at `http://localhost:3000`.
+7. The app will be available at `http://localhost:3000`.
 
 ### Running a Production Build
 

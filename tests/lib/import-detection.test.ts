@@ -1,3 +1,7 @@
+import { readFileSync } from "fs"
+import { join } from "path"
+
+import { parseCsv } from "@/lib/import-csv"
 import {
   detectMonthlySubscriptionCandidates,
   getImportDateRangeSummary,
@@ -104,6 +108,40 @@ describe("CSV import detection", () => {
       currency: "CAD",
     })
     expect(new Date(transaction.date).toISOString()).toContain("2026-06-03")
+  })
+
+  it("detects likely subscriptions from the bundled sample statement", () => {
+    const sample = readFileSync(
+      join(process.cwd(), "public/samples/credit-card-statement-3-months.csv"),
+      "utf8"
+    )
+    const parsed = parseCsv(sample)
+    const transactions = normalizeTransactionRows({
+      fallbackCurrency: "CAD",
+      mapping: {
+        merchant: "Description",
+        transactionDate: "Transaction Date",
+        amount: "Transaction Amount",
+        account: "Card #",
+      },
+      rows: parsed.rows,
+    })
+
+    const candidates = detectMonthlySubscriptionCandidates(transactions)
+
+    expect(getImportDateRangeSummary(transactions)).toMatchObject({
+      daySpan: 88,
+      hasEnoughRangeForMonthlyDetection: true,
+    })
+    expect(candidates.map((candidate) => candidate.suggestedName)).toEqual([
+      "Spotify Canada Toronto",
+      "Openrouter Inc New York",
+      "Duolingo Super Pittsburgh",
+      "Canva Pro Sydney",
+    ])
+    expect(candidates.every((candidate) => candidate.matchQuality === "likely")).toBe(
+      true
+    )
   })
 
   it("marks two monthly charges as possible", () => {
