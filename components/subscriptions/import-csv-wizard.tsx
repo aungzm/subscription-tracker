@@ -2,14 +2,30 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AlertTriangle, FileText, UploadCloud } from "lucide-react"
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  FileText,
+  UploadCloud,
+} from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Progress } from "@/components/ui/progress"
 import {
   Select,
   SelectContent,
@@ -48,6 +64,31 @@ const OPTIONAL_ROLES: ImportColumnRole[] = ["account", "currency"]
 const NO_COLUMN = "__none__"
 const NO_PAYMENT_METHOD = "__none__"
 const CREATE_PAYMENT_METHOD = "__create__"
+
+const IMPORT_STEPS = [
+  {
+    id: "upload",
+    title: "Upload",
+    description: "Choose one or more CSV files.",
+  },
+  {
+    id: "map",
+    title: "Map",
+    description: "Match columns and currency.",
+  },
+  {
+    id: "review",
+    title: "Review",
+    description: "Check detected monthly subscriptions.",
+  },
+  {
+    id: "import",
+    title: "Import",
+    description: "Confirm what gets saved.",
+  },
+] as const
+
+type ImportStepId = (typeof IMPORT_STEPS)[number]["id"]
 
 const ROLE_LABELS: Record<ImportColumnRole, string> = {
   merchant: "Merchant",
@@ -115,6 +156,8 @@ function findMatchingPaymentMethod(
 
 export function ImportCsvWizard() {
   const router = useRouter()
+  const [isOpen, setIsOpen] = useState(true)
+  const [activeStep, setActiveStep] = useState<ImportStepId>("upload")
   const [fileNames, setFileNames] = useState<string[]>([])
   const [headers, setHeaders] = useState<string[]>([])
   const [rows, setRows] = useState<RawTransactionRow[]>([])
@@ -253,6 +296,7 @@ export function ImportCsvWizard() {
     setRows(readableFiles.flatMap((file) => file.parsed.rows))
     setMapping(guessImportColumnMapping(nextHeaders))
     setReviewItems([])
+    setActiveStep("map")
   }
 
   async function handleImportSelected() {
@@ -376,214 +420,420 @@ export function ImportCsvWizard() {
   const sampleRows = rows.slice(0, 5)
   const ready = isMappingReady(mapping, fallbackCurrency)
   const selectedCount = reviewItems.filter((item) => item.selected).length
+  const activeStepIndex = IMPORT_STEPS.findIndex((step) => step.id === activeStep)
+  const progressValue = ((activeStepIndex + 1) / IMPORT_STEPS.length) * 100
+  const canContinue =
+    activeStep === "upload"
+      ? rows.length > 0
+      : activeStep === "map"
+        ? ready
+        : activeStep === "review"
+          ? reviewItems.length > 0
+          : selectedCount > 0
+
+  function goToStep(step: ImportStepId) {
+    const nextIndex = IMPORT_STEPS.findIndex((item) => item.id === step)
+
+    if (nextIndex <= activeStepIndex) {
+      setActiveStep(step)
+      return
+    }
+
+    if (step === "map" && rows.length > 0) {
+      setActiveStep(step)
+      return
+    }
+
+    if (step === "review" && ready) {
+      setActiveStep(step)
+      return
+    }
+
+    if (step === "import" && ready && reviewItems.length > 0) {
+      setActiveStep(step)
+    }
+  }
+
+  function goToNextStep() {
+    const nextStep = IMPORT_STEPS[activeStepIndex + 1]
+
+    if (nextStep && canContinue) {
+      setActiveStep(nextStep.id)
+    }
+  }
+
+  function goToPreviousStep() {
+    const previousStep = IMPORT_STEPS[activeStepIndex - 1]
+
+    if (previousStep) {
+      setActiveStep(previousStep.id)
+    }
+  }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload CSV</CardTitle>
-          <CardDescription>
-            Select a credit card export, then match its columns to the fields below.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Label
-            htmlFor="csv-file"
-            className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card/60 px-4 py-8 text-center transition-colors hover:bg-accent/40"
-          >
-            <UploadCloud className="size-8 text-muted-foreground" />
-            <span className="font-medium">
-              {fileNames.length > 0
-                ? `${fileNames.length} file${fileNames.length === 1 ? "" : "s"} selected`
-                : "Choose CSV files"}
-            </span>
-            <span className="text-sm text-muted-foreground">
-              Upload two or more months when you can. The raw files stay in this browser session.
-            </span>
-            <Input
-              id="csv-file"
-              type="file"
-              accept=".csv,text/csv"
-              multiple
-              className="sr-only"
-              onChange={(event) => handleFileChange(event.target.files)}
-            />
-          </Label>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-        </CardContent>
-      </Card>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <div className="mx-auto flex max-w-3xl flex-col items-center gap-5 rounded-lg border border-border bg-card px-6 py-10 text-center">
+        <div className="flex size-12 items-center justify-center rounded-full bg-primary/10">
+          <UploadCloud className="size-6 text-primary" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold">Import subscriptions from CSV</h2>
+          <p className="max-w-xl text-sm text-muted-foreground">
+            Upload a card statement, map the columns, review monthly matches, then import only the subscriptions you approve.
+          </p>
+        </div>
+        <DialogTrigger asChild>
+          <Button type="button">Start import</Button>
+        </DialogTrigger>
+      </div>
 
-      {headers.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Map Columns</CardTitle>
-            <CardDescription>
-              Pick the CSV columns used for detection. Currency can come from the file or one fallback value.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2">
-              {[...REQUIRED_ROLES, ...OPTIONAL_ROLES].map((role) => (
-                <div key={role} className="space-y-2">
-                  <Label>
-                    {ROLE_LABELS[role]}
-                    {REQUIRED_ROLES.includes(role) ? "" : " optional"}
-                  </Label>
-                  <Select
-                    value={mapping[role] ?? NO_COLUMN}
-                    onValueChange={(value) =>
-                      setMapping((current) => setMappingValue(current, role, value))
-                    }
+      <DialogContent className="max-h-[90vh] overflow-hidden p-0 sm:max-w-[980px]">
+        <DialogHeader className="border-b px-6 py-5">
+          <DialogTitle>Import subscriptions</DialogTitle>
+          <DialogDescription>
+            Step {activeStepIndex + 1} of {IMPORT_STEPS.length}:{" "}
+            {IMPORT_STEPS[activeStepIndex].description}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 px-6 pt-5">
+          <Progress value={progressValue} className="h-2" />
+          <div className="grid gap-2 sm:grid-cols-4">
+            {IMPORT_STEPS.map((step, index) => {
+              const complete = index < activeStepIndex
+              const active = step.id === activeStep
+
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => goToStep(step.id)}
+                  className={`flex min-h-16 items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
+                    active
+                      ? "border-primary bg-primary/10"
+                      : complete
+                        ? "border-border bg-muted/40"
+                        : "border-border bg-background"
+                  }`}
+                >
+                  <span
+                    className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
+                      complete
+                        ? "bg-primary text-primary-foreground"
+                        : active
+                          ? "bg-primary/20 text-primary"
+                          : "bg-muted text-muted-foreground"
+                    }`}
                   >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Choose column" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem
-                        value={NO_COLUMN}
-                        disabled={REQUIRED_ROLES.includes(role)}
-                      >
-                        {REQUIRED_ROLES.includes(role) ? "Choose column" : "Do not use"}
-                      </SelectItem>
-                      {headers.map((header) => (
-                        <SelectItem key={`${role}-${header}`} value={header}>
-                          {header}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-              <div className="space-y-2">
-                <Label htmlFor="fallback-currency">Fallback currency</Label>
-                <Input
-                  id="fallback-currency"
-                  value={fallbackCurrency}
-                  maxLength={3}
-                  onChange={(event) =>
-                    setFallbackCurrency(event.target.value.toUpperCase())
-                  }
-                  placeholder="USD"
-                />
-              </div>
-            </div>
+                    {complete ? <Check className="size-4" /> : index + 1}
+                  </span>
+                  <span>
+                    <span className="block font-medium">{step.title}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {step.description}
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
 
-            <div className="rounded-lg border border-border/70 bg-muted/30 p-3 text-sm">
-              <div className="flex items-center gap-2 font-medium">
-                <FileText className="size-4 text-muted-foreground" />
-                {ready
-                  ? `${normalizedTransactions.length} usable transactions, ${candidates.length} monthly matches`
-                  : "Map merchant, date, amount, and currency"}
-              </div>
-              <p className="mt-1 text-muted-foreground">
-                Two matching charges are possible. Three or more are likely.
-              </p>
-            </div>
-            {ready && dateRangeSummary && (
-              <Alert
-                variant={
-                  dateRangeSummary.hasEnoughRangeForMonthlyDetection
-                    ? "default"
-                    : "destructive"
-                }
+        <div className="max-h-[56vh] overflow-y-auto px-6 py-5">
+          {activeStep === "upload" && (
+            <div className="space-y-4">
+              <Label
+                htmlFor="csv-file"
+                className="flex min-h-64 cursor-pointer flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/30 px-4 py-8 text-center transition-colors hover:bg-accent/40"
               >
-                <AlertTriangle className="size-4" />
-                <AlertTitle>
-                  {dateRangeSummary.hasEnoughRangeForMonthlyDetection
-                    ? "Date range looks usable"
-                    : "Upload more history if you have it"}
-                </AlertTitle>
-                <AlertDescription>
-                  The mapped transactions cover {dateRangeSummary.daySpan} days, from{" "}
-                  {new Date(dateRangeSummary.firstTransactionDate).toLocaleDateString()} to{" "}
-                  {new Date(dateRangeSummary.lastTransactionDate).toLocaleDateString()}.
-                  {!dateRangeSummary.hasEnoughRangeForMonthlyDetection &&
-                    " One month of data can miss subscriptions or mark normal purchases as recurring, so matches will stay unchecked by default."}
-                </AlertDescription>
-              </Alert>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {ready && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Review Detected Subscriptions</CardTitle>
-            <CardDescription>
-              Confirm the matches before anything is imported.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {reviewItems.length === 0 ? (
-              <div className="rounded-lg border border-border/70 bg-muted/30 p-6 text-sm text-muted-foreground">
-                No monthly subscription patterns found in the mapped rows.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {reviewItems.map((item, index) => (
-                  <ReviewCandidateCard
-                    key={item.candidate.id}
-                    item={item}
-                    index={index}
-                    existingSubscriptions={existingSubscriptions}
-                    paymentMethods={paymentMethods}
-                    onChange={(nextItem) =>
-                      setReviewItems((current) =>
-                        current.map((reviewItem, reviewIndex) =>
-                          reviewIndex === index ? nextItem : reviewItem
-                        )
-                      )
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {sampleRows.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Sample Rows</CardTitle>
-            <CardDescription>First rows from the selected file.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {headers.slice(0, 6).map((header) => (
-                      <TableHead key={header}>{header}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sampleRows.map((row, rowIndex) => (
-                    <TableRow key={rowIndex}>
-                      {headers.slice(0, 6).map((header) => (
-                        <TableCell key={`${rowIndex}-${header}`} className="max-w-56 truncate">
-                          {String(row[header] ?? "")}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                <UploadCloud className="size-10 text-muted-foreground" />
+                <span className="font-medium">
+                  {fileNames.length > 0
+                    ? `${fileNames.length} file${fileNames.length === 1 ? "" : "s"} selected`
+                    : "Choose CSV files"}
+                </span>
+                <span className="max-w-md text-sm text-muted-foreground">
+                  Upload two or more months when you can. Raw CSV files stay in this browser session.
+                </span>
+                <Input
+                  id="csv-file"
+                  type="file"
+                  accept=".csv,text/csv"
+                  multiple
+                  className="sr-only"
+                  onChange={(event) => handleFileChange(event.target.files)}
+                />
+              </Label>
+              {fileNames.length > 0 && (
+                <div className="rounded-lg border border-border/70 bg-muted/30 p-3 text-sm">
+                  <div className="font-medium">Selected files</div>
+                  <div className="mt-1 text-muted-foreground">
+                    {fileNames.join(", ")}
+                  </div>
+                </div>
+              )}
+              {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
-          </CardContent>
-        </Card>
-      )}
+          )}
 
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          disabled={selectedCount === 0 || isImporting}
-          onClick={handleImportSelected}
+          {activeStep === "map" && (
+            <div className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                {[...REQUIRED_ROLES, ...OPTIONAL_ROLES].map((role) => (
+                  <div key={role} className="space-y-2">
+                    <Label>
+                      {ROLE_LABELS[role]}
+                      {REQUIRED_ROLES.includes(role) ? "" : " optional"}
+                    </Label>
+                    <Select
+                      value={mapping[role] ?? NO_COLUMN}
+                      onValueChange={(value) =>
+                        setMapping((current) => setMappingValue(current, role, value))
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Choose column" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem
+                          value={NO_COLUMN}
+                          disabled={REQUIRED_ROLES.includes(role)}
+                        >
+                          {REQUIRED_ROLES.includes(role)
+                            ? "Choose column"
+                            : "Do not use"}
+                        </SelectItem>
+                        {headers.map((header) => (
+                          <SelectItem key={`${role}-${header}`} value={header}>
+                            {header}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ))}
+                <div className="space-y-2">
+                  <Label htmlFor="fallback-currency">Fallback currency</Label>
+                  <Input
+                    id="fallback-currency"
+                    value={fallbackCurrency}
+                    maxLength={3}
+                    onChange={(event) =>
+                      setFallbackCurrency(event.target.value.toUpperCase())
+                    }
+                    placeholder="USD"
+                  />
+                </div>
+              </div>
+
+              <ImportDetectionSummary
+                ready={ready}
+                transactionCount={normalizedTransactions.length}
+                candidateCount={candidates.length}
+                dateRangeSummary={dateRangeSummary}
+              />
+
+              {sampleRows.length > 0 && (
+                <SampleRowsTable headers={headers} rows={sampleRows} />
+              )}
+            </div>
+          )}
+
+          {activeStep === "review" && (
+            <div className="space-y-4">
+              {reviewItems.length === 0 ? (
+                <div className="rounded-lg border border-border/70 bg-muted/30 p-6 text-sm text-muted-foreground">
+                  No monthly subscription patterns found in the mapped rows.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reviewItems.map((item, index) => (
+                    <ReviewCandidateCard
+                      key={item.candidate.id}
+                      item={item}
+                      index={index}
+                      existingSubscriptions={existingSubscriptions}
+                      paymentMethods={paymentMethods}
+                      onChange={(nextItem) =>
+                        setReviewItems((current) =>
+                          current.map((reviewItem, reviewIndex) =>
+                            reviewIndex === index ? nextItem : reviewItem
+                          )
+                        )
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeStep === "import" && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-border bg-muted/30 p-4">
+                <div className="text-lg font-semibold">
+                  {selectedCount} subscription{selectedCount === 1 ? "" : "s"} selected
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Only selected rows below will be saved. Raw CSV transactions are not sent to the import API.
+                </p>
+              </div>
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Monthly cost</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>Evidence</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reviewItems
+                      .filter((item) => item.selected)
+                      .map((item) => (
+                        <TableRow key={item.candidate.id}>
+                          <TableCell className="font-medium">{item.name}</TableCell>
+                          <TableCell>
+                            {formatCurrency(Number(item.cost), item.candidate.currency)}
+                          </TableCell>
+                          <TableCell>
+                            {item.paymentMethodChoice === CREATE_PAYMENT_METHOD
+                              ? item.paymentMethodSuggestion?.name
+                              : paymentMethods.find(
+                                  (method) => method.id === item.paymentMethodChoice
+                                )?.name ?? "Not assigned"}
+                          </TableCell>
+                          <TableCell>
+                            {item.candidate.matchedTransactions.length} matched charges
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={activeStepIndex === 0 || isImporting}
+            onClick={goToPreviousStep}
+          >
+            <ArrowLeft className="size-4" />
+            Back
+          </Button>
+          {activeStep === "import" ? (
+            <Button
+              type="button"
+              disabled={selectedCount === 0 || isImporting}
+              onClick={handleImportSelected}
+            >
+              {isImporting ? "Importing..." : `Import Selected (${selectedCount})`}
+            </Button>
+          ) : (
+            <Button type="button" disabled={!canContinue} onClick={goToNextStep}>
+              Next
+              <ArrowRight className="size-4" />
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function ImportDetectionSummary({
+  ready,
+  transactionCount,
+  candidateCount,
+  dateRangeSummary,
+}: {
+  ready: boolean
+  transactionCount: number
+  candidateCount: number
+  dateRangeSummary: ReturnType<typeof getImportDateRangeSummary>
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-border/70 bg-muted/30 p-3 text-sm">
+        <div className="flex items-center gap-2 font-medium">
+          <FileText className="size-4 text-muted-foreground" />
+          {ready
+            ? `${transactionCount} usable transactions, ${candidateCount} monthly matches`
+            : "Map merchant, date, amount, and currency"}
+        </div>
+        <p className="mt-1 text-muted-foreground">
+          Two matching charges are possible. Three or more are likely.
+        </p>
+      </div>
+      {ready && dateRangeSummary && (
+        <Alert
+          variant={
+            dateRangeSummary.hasEnoughRangeForMonthlyDetection
+              ? "default"
+              : "destructive"
+          }
         >
-          {isImporting ? "Importing..." : `Import Selected (${selectedCount})`}
-        </Button>
+          <AlertTriangle className="size-4" />
+          <AlertTitle>
+            {dateRangeSummary.hasEnoughRangeForMonthlyDetection
+              ? "Date range looks usable"
+              : "Upload more history if you have it"}
+          </AlertTitle>
+          <AlertDescription>
+            The mapped transactions cover {dateRangeSummary.daySpan} days, from{" "}
+            {new Date(dateRangeSummary.firstTransactionDate).toLocaleDateString()} to{" "}
+            {new Date(dateRangeSummary.lastTransactionDate).toLocaleDateString()}.
+            {!dateRangeSummary.hasEnoughRangeForMonthlyDetection &&
+              " One month of data can miss subscriptions or mark normal purchases as recurring, so matches will stay unchecked by default."}
+          </AlertDescription>
+        </Alert>
+      )}
+    </div>
+  )
+}
+
+function SampleRowsTable({
+  headers,
+  rows,
+}: {
+  headers: string[]
+  rows: RawTransactionRow[]
+}) {
+  return (
+    <div className="space-y-2">
+      <div>
+        <h3 className="font-medium">Sample rows</h3>
+        <p className="text-sm text-muted-foreground">First rows from the selected file.</p>
+      </div>
+      <div className="overflow-x-auto rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {headers.slice(0, 6).map((header) => (
+                <TableHead key={header}>{header}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, rowIndex) => (
+              <TableRow key={rowIndex}>
+                {headers.slice(0, 6).map((header) => (
+                  <TableCell
+                    key={`${rowIndex}-${header}`}
+                    className="max-w-56 truncate"
+                  >
+                    {String(row[header] ?? "")}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   )
