@@ -432,26 +432,33 @@ export function ImportCsvWizard() {
           : selectedCount > 0
 
   function goToStep(step: ImportStepId) {
+    if (!canVisitStep(step)) {
+      return
+    }
+
+    setActiveStep(step)
+  }
+
+  function canVisitStep(step: ImportStepId) {
     const nextIndex = IMPORT_STEPS.findIndex((item) => item.id === step)
 
     if (nextIndex <= activeStepIndex) {
-      setActiveStep(step)
-      return
+      return true
     }
 
     if (step === "map" && rows.length > 0) {
-      setActiveStep(step)
-      return
+      return true
     }
 
     if (step === "review" && ready) {
-      setActiveStep(step)
-      return
+      return true
     }
 
     if (step === "import" && ready && reviewItems.length > 0) {
-      setActiveStep(step)
+      return true
     }
+
+    return false
   }
 
   function goToNextStep() {
@@ -502,11 +509,14 @@ export function ImportCsvWizard() {
             {IMPORT_STEPS.map((step, index) => {
               const complete = index < activeStepIndex
               const active = step.id === activeStep
+              const canVisit = canVisitStep(step.id)
 
               return (
                 <button
                   key={step.id}
                   type="button"
+                  aria-current={active ? "step" : undefined}
+                  disabled={!canVisit}
                   onClick={() => goToStep(step.id)}
                   className={`flex min-h-16 items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors ${
                     active
@@ -514,7 +524,7 @@ export function ImportCsvWizard() {
                       : complete
                         ? "border-border bg-muted/40"
                         : "border-border bg-background"
-                  }`}
+                  } ${canVisit ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}
                 >
                   <span
                     className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium ${
@@ -678,40 +688,46 @@ export function ImportCsvWizard() {
                   Only selected rows below will be saved. Raw CSV transactions are not sent to the import API.
                 </p>
               </div>
-              <div className="overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Monthly cost</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead>Evidence</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {reviewItems
-                      .filter((item) => item.selected)
-                      .map((item) => (
-                        <TableRow key={item.candidate.id}>
-                          <TableCell className="font-medium">{item.name}</TableCell>
-                          <TableCell>
-                            {formatCurrency(Number(item.cost), item.candidate.currency)}
-                          </TableCell>
-                          <TableCell>
-                            {item.paymentMethodChoice === CREATE_PAYMENT_METHOD
-                              ? item.paymentMethodSuggestion?.name
-                              : paymentMethods.find(
-                                  (method) => method.id === item.paymentMethodChoice
-                                )?.name ?? "Not assigned"}
-                          </TableCell>
-                          <TableCell>
-                            {item.candidate.matchedTransactions.length} matched charges
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </div>
+              {selectedCount === 0 ? (
+                <div className="rounded-lg border border-border/70 bg-muted/30 p-6 text-sm text-muted-foreground">
+                  Go back to Review and select at least one subscription to import.
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Monthly cost</TableHead>
+                        <TableHead>Payment</TableHead>
+                        <TableHead>Evidence</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reviewItems
+                        .filter((item) => item.selected)
+                        .map((item) => (
+                          <TableRow key={item.candidate.id}>
+                            <TableCell className="font-medium">{item.name}</TableCell>
+                            <TableCell>
+                              {formatCurrency(Number(item.cost), item.candidate.currency)}
+                            </TableCell>
+                            <TableCell>
+                              {item.paymentMethodChoice === CREATE_PAYMENT_METHOD
+                                ? item.paymentMethodSuggestion?.name
+                                : paymentMethods.find(
+                                    (method) => method.id === item.paymentMethodChoice
+                                  )?.name ?? "Not assigned"}
+                            </TableCell>
+                            <TableCell>
+                              {item.candidate.matchedTransactions.length} matched charges
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
             </div>
           )}
         </div>
