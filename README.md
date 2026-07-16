@@ -1,51 +1,76 @@
-# App Subscription Tracker
+# SubTracker
 
-A simple and effective tool to help you manage your app subscriptions. Track recurring payments, monitor your spending habits over time, and receive reminders so you never miss a renewal.
+SubTracker helps you track recurring subscriptions, renewal dates, payment methods, and reminders in one place. It also includes CSV import for finding likely monthly subscriptions from card statements before anything is saved.
 
 ## Screenshots
 
+<img src="public/readme/dashboard.png" alt="SubTracker dashboard with spend cards, renewal calendar, and upcoming renewals" width="900">
+
 <p>
-  <img src="https://github.com/user-attachments/assets/8cb3cd30-c606-480f-8670-6f3a10236a0b" width="270" alt="Dashboard">
-  <img src="https://github.com/user-attachments/assets/dd94633f-7cf9-4897-af7b-662638e1e204" width="270" alt="Dashboard Dark">
-  <img src="https://github.com/user-attachments/assets/0496e0c7-48ca-4a2c-b04d-2c81ae150777" width="270" alt="Subscriptions">
+  <img src="public/readme/subscriptions.png" alt="Subscriptions table with filters and CSV import button" width="430">
+  <img src="public/readme/csv-import-flow.png" alt="CSV import modal with a four-step guided flow" width="430">
 </p>
 <p>
-  <img src="https://github.com/user-attachments/assets/61d026ee-ff3e-4435-b858-2f9f2941fb88" width="270" alt="Subscription Details">
-  <img src="https://github.com/user-attachments/assets/f1caac76-c37a-4561-b057-0b0fb4a36ed6" width="270" alt="Categories">
-  <img src="https://github.com/user-attachments/assets/83d40314-7316-4e77-86c5-a43485f31dc8" width="270" alt="Payment Methods">
+  <img src="public/readme/analytics.png" alt="Analytics page with monthly and yearly subscription trends" width="430">
+  <img src="public/readme/notifications.png" alt="Notification provider settings" width="430">
 </p>
 <p>
-  <img src="https://github.com/user-attachments/assets/0b0849ff-9d7e-4763-99d2-5705e39175ff" width="270" alt="Reminders">
-  <img src="https://github.com/user-attachments/assets/92f822aa-3ecc-495e-bddc-c88e16b1de65" width="270" alt="Analytics">
-  <img src="https://github.com/user-attachments/assets/1d82db72-340c-442c-a943-ad4558613952" width="270" alt="Settings">
-</p>
-<p>
-  <img src="https://github.com/user-attachments/assets/f57a1e6e-0049-492d-a53f-39a97d4f637c" width="270" alt="Notifications">
-  <img src="https://github.com/user-attachments/assets/948b804e-6d61-458e-86d0-f7ea0386e66e" width="270" alt="Login">
+  <img src="public/readme/payment-methods.png" alt="Payment method settings" width="430">
+  <img src="public/readme/categories.png" alt="Subscription category settings" width="430">
 </p>
 
 ## Features
 
-* **Subscription Tracking**
-  Easily add and manage all your active subscriptions in one place.
+* **Subscription tracking**
+  Add subscriptions, categorize them, assign payment methods, and filter the list by billing frequency, category, or payment method.
 
-* **Cost Overview**
-  View your total subscription costs on a monthly and yearly basis.
+* **CSV import**
+  Upload one or more card statement CSVs, map the columns in the browser, review monthly subscription matches, and import only the confirmed subscriptions.
 
-* **Change Over Time**
-  Monitor how your subscription spending evolves over time with historical data tracking.
+* **Cost overview**
+  See monthly spend, yearly spend, active subscriptions, and upcoming renewals from the dashboard.
 
-* **Notification System**
-  Get notified of upcoming renewals through app-wide Resend email delivery and optional user-configured webhooks.
+* **Analytics**
+  Review monthly and yearly subscription trends by category.
 
-* **Recurring Reminder Presets**
+* **Notifications**
+  Get renewal reminders through app-wide Resend email delivery and optional user-configured webhooks.
+
+* **Recurring reminder presets**
   Configure reminders like `1 day before`, `3 days before`, and `1 week before`, with automatic rescheduling for recurring subscriptions.
 
-* **Framework-Agnostic Reminder Scheduling**
+* **Framework-agnostic reminder scheduling**
   Run the same reminder dispatch pipeline on Vercel Cron or from your own Docker-hosted scheduler/worker.
 
-* **Docker Support**
-  Host the application yourself using Docker. Refer to the `docker-compose.yml` file for setup instructions.
+* **Docker support**
+  Host the application yourself using Docker.
+
+## CSV import
+
+The import flow is designed for privacy. CSV parsing, column mapping, and subscription detection happen in the browser. The API receives only the subscriptions the user confirms.
+
+Current detection focuses on monthly subscriptions:
+
+* Two matching charges are marked as possible.
+* Three or more matching charges are marked as likely.
+* Short transaction ranges are allowed, but the UI warns when there is not enough history for reliable monthly detection.
+
+To test the flow locally, use `public/samples/credit-card-statement-3-months.csv`.
+It uses a common card export shape with these mappings:
+
+* Merchant name: `Description`
+* Transaction date: `Transaction Date`
+* Amount: `Transaction Amount`
+* Card/account: `Card #`
+* Currency: `CAD`
+
+## Roadmap
+
+* Improve merchant cleanup for card statement descriptors.
+* Add yearly subscription detection after the monthly import flow is proven.
+* Add import presets for common banks and card issuers.
+* Let users save a mapping template without storing raw transaction history.
+* Add richer duplicate detection before import.
 
 ## Getting Started
 
@@ -105,22 +130,13 @@ Notes:
    pnpm db:seed
    ```
 
-5. To test CSV import, use `public/samples/credit-card-statement-3-months.csv`.
-   It uses a common credit card export shape with these mappings:
-
-   * Merchant name: `Description`
-   * Transaction date: `Transaction Date`
-   * Amount: `Transaction Amount`
-   * Card/account: `Card #`
-   * Currency: `CAD`
-
-6. Start the development server:
+5. Start the development server:
 
    ```bash
    pnpm dev
    ```
 
-7. The app will be available at `http://localhost:3000`.
+6. The app will be available at `http://localhost:3000`.
 
 ### Running a Production Build
 
