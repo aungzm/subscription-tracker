@@ -4,33 +4,13 @@ SubTracker helps you track recurring subscriptions, renewal dates, payment metho
 
 ## Screenshots
 
-### Dashboard
-
 <img src="public/readme/dashboard.png" alt="SubTracker dashboard with spend cards, renewal calendar, and upcoming renewals" width="900">
 
-### Subscriptions
-
-<img src="public/readme/subscriptions.png" alt="Subscriptions table with filters and CSV import button" width="900">
-
-### CSV import
-
-<img src="public/readme/csv-import-flow.png" alt="CSV import modal with a four-step guided flow" width="900">
-
-### Analytics
-
-<img src="public/readme/analytics.png" alt="Analytics page with monthly and yearly subscription trends" width="900">
-
-### Notifications
-
-<img src="public/readme/notifications.png" alt="Notification provider settings" width="900">
-
-### Payment methods
-
-<img src="public/readme/payment-methods.png" alt="Payment method settings" width="900">
-
-### Categories
-
-<img src="public/readme/categories.png" alt="Subscription category settings" width="900">
+| Subscriptions | CSV import | Analytics |
+| --- | --- | --- |
+| <img src="public/readme/subscriptions.png" alt="Subscriptions table with filters and CSV import button" width="280"> | <img src="public/readme/csv-import-flow.png" alt="CSV import modal with a four-step guided flow" width="280"> | <img src="public/readme/analytics.png" alt="Analytics page with monthly and yearly subscription trends" width="280"> |
+| Notifications | Payment methods | Categories |
+| <img src="public/readme/notifications.png" alt="Notification provider settings" width="280"> | <img src="public/readme/payment-methods.png" alt="Payment method settings" width="280"> | <img src="public/readme/categories.png" alt="Subscription category settings" width="280"> |
 
 ## Features
 
