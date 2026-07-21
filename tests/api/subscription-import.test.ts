@@ -192,6 +192,7 @@ describe("POST /api/subscriptions/import", () => {
           cost: 15.99,
           userId: USER_IDS.ALICE,
           billingFrequency: "monthly",
+          endDate: null,
           categoryId: CATEGORY_IDS.STREAMING,
           paymentMethodId: PAYMENT_METHOD_IDS.VISA,
         }),
