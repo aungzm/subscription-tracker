@@ -64,6 +64,7 @@ const OPTIONAL_ROLES: ImportColumnRole[] = ["account", "currency"]
 const NO_COLUMN = "__none__"
 const NO_PAYMENT_METHOD = "__none__"
 const CREATE_PAYMENT_METHOD = "__create__"
+const ONGOING_MONTHLY_LABEL = "Monthly, ongoing"
 
 const IMPORT_STEPS = [
   {
@@ -79,12 +80,12 @@ const IMPORT_STEPS = [
   {
     id: "review",
     title: "Review",
-    description: "Check detected monthly subscriptions.",
+    description: "Check ongoing monthly subscriptions.",
   },
   {
     id: "import",
     title: "Import",
-    description: "Confirm what gets saved.",
+    description: "Confirm ongoing subscriptions.",
   },
 ] as const
 
@@ -486,7 +487,7 @@ export function ImportCsvWizard() {
         <div className="space-y-2">
           <h2 className="text-xl font-semibold">Import subscriptions from CSV</h2>
           <p className="max-w-xl text-sm text-muted-foreground">
-            Upload a card statement, map the columns, review monthly matches, then import only the subscriptions you approve.
+            Upload a card statement, map the columns, review monthly matches, then import ongoing subscriptions you approve.
           </p>
         </div>
         <DialogTrigger asChild>
@@ -685,7 +686,7 @@ export function ImportCsvWizard() {
                   {selectedCount} subscription{selectedCount === 1 ? "" : "s"} selected
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Only selected rows below will be saved. Raw CSV transactions are not sent to the import API.
+                  Selected items will be saved as monthly subscriptions with no end date. Raw CSV transactions are not sent to the import API.
                 </p>
               </div>
               {selectedCount === 0 ? (
@@ -699,6 +700,7 @@ export function ImportCsvWizard() {
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Monthly cost</TableHead>
+                        <TableHead>Billing</TableHead>
                         <TableHead>Payment</TableHead>
                         <TableHead>Evidence</TableHead>
                       </TableRow>
@@ -712,6 +714,7 @@ export function ImportCsvWizard() {
                             <TableCell>
                               {formatCurrency(Number(item.cost), item.candidate.currency)}
                             </TableCell>
+                            <TableCell>{ONGOING_MONTHLY_LABEL}</TableCell>
                             <TableCell>
                               {item.paymentMethodChoice === CREATE_PAYMENT_METHOD
                                 ? item.paymentMethodSuggestion?.name
@@ -900,6 +903,7 @@ function ReviewCandidateCard({
               >
                 {item.candidate.matchQuality}
               </Badge>
+              <Badge variant="outline">{ONGOING_MONTHLY_LABEL}</Badge>
               <Badge variant="outline">
                 {Math.round(item.candidate.confidence * 100)}%
               </Badge>
@@ -910,7 +914,7 @@ function ReviewCandidateCard({
             <p className="text-sm text-muted-foreground">
               {item.candidate.matchedTransactions.length} charges from{" "}
               {new Date(item.candidate.firstSeen).toLocaleDateString()} to{" "}
-              {new Date(item.candidate.lastSeen).toLocaleDateString()}
+              {new Date(item.candidate.lastSeen).toLocaleDateString()}. These dates are evidence only.
             </p>
             {duplicateWarning && (
               <p className="text-sm text-destructive">{duplicateWarning}</p>
@@ -941,7 +945,7 @@ function ReviewCandidateCard({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`candidate-start-${index}`}>Start date</Label>
+            <Label htmlFor={`candidate-start-${index}`}>Renewal anchor</Label>
             <Input
               id={`candidate-start-${index}`}
               type="date"
@@ -950,6 +954,9 @@ function ReviewCandidateCard({
                 onChange({ ...item, startDate: event.target.value })
               }
             />
+            <p className="text-xs text-muted-foreground">
+              Used to calculate future monthly renewals.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Payment</Label>
