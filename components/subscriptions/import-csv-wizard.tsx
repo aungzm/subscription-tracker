@@ -62,6 +62,7 @@ import {
 const REQUIRED_ROLES: ImportColumnRole[] = ["merchant", "transactionDate", "amount"]
 const OPTIONAL_ROLES: ImportColumnRole[] = ["account", "currency"]
 const NO_COLUMN = "__none__"
+const NO_CATEGORY = "__none__"
 const NO_PAYMENT_METHOD = "__none__"
 const CREATE_PAYMENT_METHOD = "__create__"
 const ONGOING_MONTHLY_LABEL = "Monthly, ongoing"
@@ -105,8 +106,15 @@ type ReviewItem = {
   name: string
   cost: string
   startDate: string
+  categoryChoice: string
   paymentMethodChoice: string
   paymentMethodSuggestion: ImportedPaymentMethodSuggestion | null
+}
+
+type ExistingCategory = {
+  id: string
+  name: string
+  color?: string | null
 }
 
 type ExistingPaymentMethod = {
@@ -170,6 +178,7 @@ export function ImportCsvWizard() {
   const [existingSubscriptions, setExistingSubscriptions] = useState<
     ExistingSubscriptionForImport[]
   >([])
+  const [categories, setCategories] = useState<ExistingCategory[]>([])
   const [paymentMethods, setPaymentMethods] = useState<ExistingPaymentMethod[]>([])
 
   const normalizedTransactions = useMemo(() => {
@@ -217,6 +226,7 @@ export function ImportCsvWizard() {
           name: candidate.suggestedName,
           cost: candidate.amount.toFixed(2),
           startDate: candidate.lastSeen.slice(0, 10),
+          categoryChoice: NO_CATEGORY,
           paymentMethodChoice:
             matchingPaymentMethod?.id ??
             (paymentMethodSuggestion ? CREATE_PAYMENT_METHOD : NO_PAYMENT_METHOD),
@@ -239,6 +249,22 @@ export function ImportCsvWizard() {
       })
       .catch(() => {
         setExistingSubscriptions([])
+      })
+  }, [])
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Unable to load categories")
+        }
+        return response.json()
+      })
+      .then((data: ExistingCategory[]) => {
+        setCategories(data)
+      })
+      .catch(() => {
+        setCategories([])
       })
   }, [])
 
@@ -325,6 +351,8 @@ export function ImportCsvWizard() {
             currency: item.candidate.currency,
             billingFrequency: "monthly" as const,
             startDate: item.startDate,
+            category:
+              item.categoryChoice === NO_CATEGORY ? undefined : item.categoryChoice,
             paymentMethod,
             notes: `Imported from CSV after matching ${item.candidate.matchedTransactions.length} transactions.`,
           }
@@ -664,6 +692,7 @@ export function ImportCsvWizard() {
                       item={item}
                       index={index}
                       existingSubscriptions={existingSubscriptions}
+                      categories={categories}
                       paymentMethods={paymentMethods}
                       onChange={(nextItem) =>
                         setReviewItems((current) =>
@@ -701,6 +730,7 @@ export function ImportCsvWizard() {
                         <TableHead>Name</TableHead>
                         <TableHead>Monthly cost</TableHead>
                         <TableHead>Billing</TableHead>
+                        <TableHead>Category</TableHead>
                         <TableHead>Payment</TableHead>
                         <TableHead>Evidence</TableHead>
                       </TableRow>
@@ -715,6 +745,11 @@ export function ImportCsvWizard() {
                               {formatCurrency(Number(item.cost), item.candidate.currency)}
                             </TableCell>
                             <TableCell>{ONGOING_MONTHLY_LABEL}</TableCell>
+                            <TableCell>
+                              {categories.find(
+                                (category) => category.id === item.categoryChoice
+                              )?.name ?? "Uncategorized"}
+                            </TableCell>
                             <TableCell>
                               {item.paymentMethodChoice === CREATE_PAYMENT_METHOD
                                 ? item.paymentMethodSuggestion?.name
@@ -862,12 +897,14 @@ function ReviewCandidateCard({
   item,
   index,
   existingSubscriptions,
+  categories,
   paymentMethods,
   onChange,
 }: {
   item: ReviewItem
   index: number
   existingSubscriptions: ExistingSubscriptionForImport[]
+  categories: ExistingCategory[]
   paymentMethods: ExistingPaymentMethod[]
   onChange: (item: ReviewItem) => void
 }) {
@@ -921,7 +958,7 @@ function ReviewCandidateCard({
             )}
           </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[640px] lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:min-w-[760px] lg:grid-cols-5">
           <div className="space-y-2">
             <Label htmlFor={`candidate-name-${index}`}>Name</Label>
             <Input
@@ -957,6 +994,34 @@ function ReviewCandidateCard({
             <p className="text-xs text-muted-foreground">
               Used to calculate future monthly renewals.
             </p>
+          </div>
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <Select
+              value={item.categoryChoice}
+              onValueChange={(value) =>
+                onChange({ ...item, categoryChoice: value })
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_CATEGORY}>Uncategorized</SelectItem>
+                {categories.map((category) => (
+                  <SelectItem key={category.id} value={category.id}>
+                    <span className="flex items-center gap-2">
+                      <span
+                        aria-hidden
+                        className="inline-block h-2.5 w-2.5 rounded-full border border-border"
+                        style={{ backgroundColor: category.color ?? "#9CA3AF" }}
+                      />
+                      {category.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label>Payment</Label>
