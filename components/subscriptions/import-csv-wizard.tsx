@@ -203,8 +203,11 @@ export function ImportCsvWizard() {
   )
 
   useEffect(() => {
-    setReviewItems(
+    setReviewItems((currentItems) =>
       candidates.map((candidate) => {
+        const currentItem = currentItems.find(
+          (item) => item.candidate.id === candidate.id
+        )
         const duplicateWarning = getSubscriptionImportDuplicateWarning({
           candidate,
           existingSubscriptions,
@@ -216,18 +219,21 @@ export function ImportCsvWizard() {
         const matchingPaymentMethod = paymentMethodSuggestion
           ? findMatchingPaymentMethod(paymentMethodSuggestion, paymentMethods)
           : null
+        const selectable =
+          !duplicateWarning &&
+          (dateRangeSummary?.hasEnoughRangeForMonthlyDetection ?? true)
 
         return {
           candidate,
-          selected:
-            candidate.matchQuality === "likely" &&
-            !duplicateWarning &&
-            (dateRangeSummary?.hasEnoughRangeForMonthlyDetection ?? true),
-          name: candidate.suggestedName,
-          cost: candidate.amount.toFixed(2),
-          startDate: candidate.lastSeen.slice(0, 10),
-          categoryChoice: NO_CATEGORY,
+          selected: currentItem
+            ? currentItem.selected && selectable
+            : candidate.matchQuality === "likely" && selectable,
+          name: currentItem?.name ?? candidate.suggestedName,
+          cost: currentItem?.cost ?? candidate.amount.toFixed(2),
+          startDate: currentItem?.startDate ?? candidate.lastSeen.slice(0, 10),
+          categoryChoice: currentItem?.categoryChoice ?? NO_CATEGORY,
           paymentMethodChoice:
+            currentItem?.paymentMethodChoice ??
             matchingPaymentMethod?.id ??
             (paymentMethodSuggestion ? CREATE_PAYMENT_METHOD : NO_PAYMENT_METHOD),
           paymentMethodSuggestion,
