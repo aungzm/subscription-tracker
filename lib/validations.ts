@@ -1,4 +1,58 @@
 import { z } from "zod";
+import { getWebhookUrlSafetyError } from "@/lib/webhook-url";
+
+const dateString = (fieldName: string) =>
+  z
+    .string()
+    .min(1, `${fieldName} is required`)
+    .refine((value) => !Number.isNaN(new Date(value).getTime()), {
+      message: `${fieldName} must be a valid date`,
+    });
+
+const optionalDateString = (fieldName: string) =>
+  dateString(fieldName).nullable().optional();
+
+const supportedCurrencyCodes = new Set(
+  (
+    (Intl as unknown as {
+      supportedValuesOf?: (key: "currency") => string[];
+    }).supportedValuesOf?.("currency") ?? [
+      "USD",
+      "EUR",
+      "GBP",
+      "CAD",
+      "AUD",
+      "JPY",
+      "CHF",
+      "CNY",
+      "INR",
+    ]
+  ).map((code) => code.toUpperCase())
+);
+
+function isValidCurrencyCode(value: string) {
+  if (!/^[A-Z]{3}$/.test(value)) {
+    return false;
+  }
+
+  return supportedCurrencyCodes.has(value);
+}
+
+const currencyCode = (fieldName = "Currency") =>
+  z
+    .string()
+    .trim()
+    .transform((value) => value.toUpperCase())
+    .refine(isValidCurrencyCode, {
+      message: `${fieldName} must be a valid ISO currency code`,
+    });
+
+const webhookUrlString = z
+  .string()
+  .url("Webhook URL is required")
+  .refine((value) => getWebhookUrlSafetyError(value) === null, {
+    message: "Webhook URL must be a public HTTPS URL",
+  });
 
 // Helper for consistent error responses
 export function formatZodError(error: z.ZodError) {
@@ -30,11 +84,11 @@ export const passwordUpdateSchema = z
 export const profileUpdateSchema = z.object({
   name: z.string().min(1, "Name is required").optional(),
   image: z.string().url().nullable().optional(),
-  currency: z.string().min(1).optional(),
+  currency: currencyCode().optional(),
 });
 
 export const currencyUpdateSchema = z.object({
-  currency: z.string().min(1, "Currency is required"),
+  currency: currencyCode(),
 });
 
 // Subscription schemas
@@ -50,10 +104,10 @@ export const subscriptionCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   cost: z.number().positive("Cost must be positive"),
   billingFrequency: z.enum(billingFrequencyValues),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().nullable().optional(),
+  startDate: dateString("Start date"),
+  endDate: optionalDateString("End date"),
   notes: z.string().nullable().optional(),
-  currency: z.string().min(1, "Currency is required"),
+  currency: currencyCode(),
   category: z.string().nullable().optional(),
   paymentMethod: z.string().nullable().optional(),
 });
@@ -62,10 +116,10 @@ export const subscriptionUpdateSchema = z.object({
   name: z.string().min(1).optional(),
   cost: z.number().positive().optional(),
   billingFrequency: z.enum(billingFrequencyValues).optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().nullable().optional(),
+  startDate: dateString("Start date").optional(),
+  endDate: optionalDateString("End date"),
   notes: z.string().nullable().optional(),
-  currency: z.string().min(1).optional(),
+  currency: currencyCode().optional(),
   category: z.string().nullable().optional(),
   paymentMethod: z.string().nullable().optional(),
 });
@@ -109,7 +163,7 @@ export const paymentMethodCreateSchema = z.object({
     .regex(/^\d{4}$/, "Last four must be digits only")
     .nullable()
     .optional(),
-  expiryDate: z.string().nullable().optional(),
+  expiryDate: optionalDateString("Expiry date"),
 });
 
 export const paymentMethodUpdateSchema = z.object({
@@ -121,17 +175,23 @@ export const paymentMethodUpdateSchema = z.object({
     .regex(/^\d{4}$/)
     .nullable()
     .optional(),
-  expiryDate: z.string().nullable().optional(),
+  expiryDate: optionalDateString("Expiry date"),
 });
 
 // Reminder schemas
 export const reminderCreateSchema = z.object({
   subscriptionId: z.string().min(1, "Subscription ID is required"),
-  reminderDate: z.string().min(1, "Reminder date is required"),
+  reminderDate: dateString("Reminder date"),
   reminderPreset: z.enum(reminderPresetValues).optional().default("custom"),
-  nextSendAt: z.string().min(1, "Next send date is required"),
+  nextSendAt: dateString("Next send date"),
   notificationProviderIds: z.array(z.string()).optional().default([]),
   id: z.string().optional(), // For updates
+});
+
+export const reminderUpdateSchema = z.object({
+  reminderDate: dateString("Reminder date").optional(),
+  nextSendAt: optionalDateString("Next send date"),
+  isRead: z.boolean().optional(),
 });
 
 // Notification provider schemas
@@ -144,7 +204,7 @@ export const notificationProviderCreateSchema = z.discriminatedUnion("type", [
   z.object({
     name: z.string().min(1, "Name is required"),
     type: z.literal("PUSH"),
-    webhookUrl: z.string().url("Webhook URL is required"),
+    webhookUrl: webhookUrlString,
     webhookSecret: z.string().nullable().optional(),
   }),
 ]);
@@ -156,7 +216,7 @@ export const sendNotificationSchema = z.object({
   name: z.string().min(1).optional().default("Notification"),
   type: z.enum(["EMAIL", "PUSH"]),
   email: z.string().email().optional().nullable(),
-  webhookUrl: z.string().url().optional().nullable(),
+  webhookUrl: webhookUrlString.optional().nullable(),
   webhookSecret: z.string().optional().nullable(),
   message: z.object({
     subject: z.string().min(1),
@@ -176,5 +236,6 @@ export type CategoryUpdateInput = z.infer<typeof categoryUpdateSchema>;
 export type PaymentMethodCreateInput = z.infer<typeof paymentMethodCreateSchema>;
 export type PaymentMethodUpdateInput = z.infer<typeof paymentMethodUpdateSchema>;
 export type ReminderCreateInput = z.infer<typeof reminderCreateSchema>;
+export type ReminderUpdateInput = z.infer<typeof reminderUpdateSchema>;
 export type NotificationProviderInput = z.infer<typeof notificationProviderCreateSchema>;
 export type SendNotificationInput = z.infer<typeof sendNotificationSchema>;

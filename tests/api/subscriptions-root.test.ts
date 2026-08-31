@@ -180,8 +180,8 @@ describe("API Integration Tests: Subscriptions Root", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...validBody,
-          category: "Streaming",
-          paymentMethod: "Visa",
+          category: CATEGORY_IDS.STREAMING,
+          paymentMethod: PAYMENT_METHOD_IDS.VISA,
         }),
       });
       const res = (await POST(req)) as unknown as ApiResponse<any>;
@@ -197,41 +197,22 @@ describe("API Integration Tests: Subscriptions Root", () => {
       expect(mockedPrisma.paymentMethod.create).not.toHaveBeenCalled();
     });
 
-    it("creates new category and payment method when not found", async () => {
+    it("returns 400 when category is not owned by the user", async () => {
       mockedPrisma.category.findFirst.mockResolvedValueOnce(null);
-      mockedPrisma.category.create.mockResolvedValueOnce(
-        createMockCategory({ id: "new-cat", name: "NewCat" })
-      );
-      mockedPrisma.paymentMethod.findFirst.mockResolvedValueOnce(null);
-      mockedPrisma.paymentMethod.create.mockResolvedValueOnce(
-        createMockPaymentMethod({ id: "new-pm", name: "NewPM" })
-      );
-
-      const createdSub = {
-        ...createMockSubscription({ name: "Disney+", cost: 9.99 }),
-        category: createMockCategory({ id: "new-cat", name: "NewCat" }),
-        paymentMethod: createMockPaymentMethod({ id: "new-pm", name: "NewPM" }),
-      };
-      mockedPrisma.subscription.create.mockResolvedValueOnce(createdSub as any);
 
       const req = new Request("http://localhost/api/subscriptions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...validBody,
-          category: "NewCat",
-          paymentMethod: "NewPM",
+          category: CATEGORY_IDS.PRODUCTIVITY,
         }),
       });
-      const res = (await POST(req)) as unknown as ApiResponse<any>;
+      const res = (await POST(req)) as unknown as ApiResponse<{ error: string }>;
 
-      expect(res.body.name).toBe("Disney+");
-      expect(mockedPrisma.category.create).toHaveBeenCalledWith({
-        data: { name: "NewCat", userId: aliceId },
-      });
-      expect(mockedPrisma.paymentMethod.create).toHaveBeenCalledWith({
-        data: { name: "NewPM", type: "OTHER", userId: aliceId },
-      });
+      expect(res.body).toEqual({ error: "Invalid category" });
+      expect(res.init).toEqual({ status: 400 });
+      expect(mockedPrisma.subscription.create).not.toHaveBeenCalled();
     });
 
     it("creates subscription without category or payment method", async () => {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { formatZodError, reminderUpdateSchema } from "@/lib/validations";
 
 // GET a single reminder by id
 export async function GET(
@@ -48,7 +49,12 @@ export async function PUT(
     }
     const params = await context.params;
     const body = await request.json();
-    const { reminderDate, nextSendAt, isRead } = body;
+    const parseResult = reminderUpdateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return NextResponse.json(formatZodError(parseResult.error), { status: 400 });
+    }
+
+    const { reminderDate, nextSendAt, isRead } = parseResult.data;
 
     // Verify that the reminder belongs to the current user
     const existingReminder = await prisma.reminder.findFirst({

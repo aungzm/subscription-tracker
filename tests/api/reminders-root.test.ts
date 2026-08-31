@@ -16,6 +16,7 @@ import {
   createMockReminder,
   createMockSubscription,
   createMockReminderWithSubscription,
+  createMockNotificationProvider,
 } from "../factories";
 
 jest.mock("@/lib/auth", () => ({
@@ -51,6 +52,12 @@ describe("API Integration Tests: Reminders Root", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedAuth.mockResolvedValue(session);
+    mockedPrisma.notificationProvider.findMany.mockResolvedValue([
+      createMockNotificationProvider({
+        id: NOTIFICATION_PROVIDER_IDS.ALICE_EMAIL,
+        userId: aliceId,
+      }),
+    ]);
   });
 
   // ─── GET /api/reminders ──────────────────────────────────────────────
@@ -148,6 +155,34 @@ describe("API Integration Tests: Reminders Root", () => {
       }>;
       expect(res.body).toEqual({ error: "Subscription not found" });
       expect(res.init).toEqual({ status: 404 });
+    });
+
+    it("returns 400 when notification provider is not owned by the user", async () => {
+      const subscription = createMockSubscription({
+        id: SUBSCRIPTION_IDS.NETFLIX,
+      });
+      mockedPrisma.subscription.findFirst.mockResolvedValueOnce(subscription);
+      mockedPrisma.notificationProvider.findMany.mockResolvedValueOnce([
+        createMockNotificationProvider({
+          id: NOTIFICATION_PROVIDER_IDS.ALICE_EMAIL,
+          userId: aliceId,
+        }),
+      ]);
+
+      const res = (await POST(
+        makeRequest({
+          ...validBody,
+          notificationProviderIds: [
+            NOTIFICATION_PROVIDER_IDS.ALICE_EMAIL,
+            NOTIFICATION_PROVIDER_IDS.BOB_EMAIL,
+          ],
+        })
+      )) as unknown as ApiResponse<{ error: string }>;
+
+      expect(res.body).toEqual({ error: "Invalid notification provider" });
+      expect(res.init).toEqual({ status: 400 });
+      expect(mockedPrisma.reminder.create).not.toHaveBeenCalled();
+      expect(mockedPrisma.reminder.update).not.toHaveBeenCalled();
     });
 
     it("creates a new reminder", async () => {

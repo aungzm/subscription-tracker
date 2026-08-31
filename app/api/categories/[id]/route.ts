@@ -53,6 +53,17 @@ export async function PUT(
 
     const validatedData = parseResult.data;
 
+    const existing = await prisma.category.findFirst({
+      where: {
+        id: params.id,
+        userId: session.user.id,
+      },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const category = await prisma.category.update({
       where: {
         id: params.id,
@@ -85,6 +96,17 @@ export async function DELETE(
     }
 
     const params = await context.params;
+    const existing = await prisma.category.findFirst({
+      where: {
+        id: params.id,
+        userId: session.user.id,
+      },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     await prisma.category.delete({
       where: {
         id: params.id,

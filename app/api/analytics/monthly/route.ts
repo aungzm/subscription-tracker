@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { normalizeToMonthlyCost } from "@/lib/currency";
+import {
+  normalizeToMonthlyCostSyncSafe,
+  prefetchExchangeRates,
+} from "@/lib/currency";
 
 interface Subscription {
   id: string;
@@ -72,6 +75,10 @@ export async function GET(request: NextRequest) {
       include: { category: true },
     });
 
+    const uniqueCurrencies = [...new Set(subscriptions.map((sub) => sub.currency))];
+    const ratesMap = await prefetchExchangeRates(uniqueCurrencies);
+    const conversionErrors: string[] = [];
+
     // Initialize monthly data – one object per month.
     let monthlyData: MonthlyDataPoint[] = Array.from({ length: 12 }, (_, i) => ({
       name: new Date(yearInt, i).toLocaleString("default", { month: "short" }),
@@ -105,13 +112,19 @@ export async function GET(request: NextRequest) {
       const startMonth = effectiveStart.getMonth();
       const endMonth = effectiveEnd.getMonth();
 
-      // Convert cost to user's preferred currency and normalize to monthly
-      const monthlyCost = await normalizeToMonthlyCost(
+      // Convert cost to user's preferred currency and normalize to monthly.
+      const conversionResult = normalizeToMonthlyCostSyncSafe(
         sub.cost,
         sub.currency,
         sub.billingFrequency,
-        userCurrency
+        userCurrency,
+        ratesMap
       );
+      const monthlyCost = conversionResult.amount;
+
+      if (!conversionResult.success && conversionResult.error) {
+        conversionErrors.push(`${sub.id}: ${conversionResult.error}`);
+      }
 
       // Determine the group key for the category. If none is provided, use "uncategorized".
       let categoryKey = "uncategorized";
@@ -180,6 +193,12 @@ export async function GET(request: NextRequest) {
       monthlyData,
       categories: Object.values(categoryMeta),
       currency: userCurrency,
+      ...(conversionErrors.length > 0 && {
+        warnings: {
+          conversionErrors: [...new Set(conversionErrors)],
+          message: "Some currency conversions failed. Amounts use original currency values.",
+        },
+      }),
     });
   } catch (error) {
     console.error("Error fetching monthly analytics:", error);

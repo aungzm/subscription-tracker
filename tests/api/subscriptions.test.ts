@@ -132,9 +132,10 @@ describe("API Integration Tests: Subscriptions [id]", () => {
         billingFrequency: "monthly",
       });
 
-      // category & paymentMethod are names (mapped by route handler)
-      expect(sub.category).toBe("Streaming");
-      expect(sub.paymentMethod).toBe("Visa");
+      expect(sub.category).toBe(CATEGORY_IDS.STREAMING);
+      expect(sub.categoryName).toBe("Streaming");
+      expect(sub.paymentMethod).toBe(PAYMENT_METHOD_IDS.VISA);
+      expect(sub.paymentMethodName).toBe("Visa");
 
       // reminders is an array of { date, providers: string[] }
       expect(Array.isArray(sub.reminders)).toBe(true);
@@ -206,6 +207,9 @@ describe("API Integration Tests: Subscriptions [id]", () => {
         name: "PayPal",
         type: "PAYPAL",
       });
+
+      mockedPrisma.category.findFirst.mockResolvedValueOnce(productivityCat);
+      mockedPrisma.paymentMethod.findFirst.mockResolvedValueOnce(paypalMethod);
 
       const updatedSub = {
         ...createMockSubscription({
@@ -281,6 +285,76 @@ describe("API Integration Tests: Subscriptions [id]", () => {
       expect(res.body.name).toBe("PartialName");
 
       expect(mockedPrisma.subscription.update).toHaveBeenCalled();
+    });
+
+    it("preserves endDate when it is omitted from a partial update", async () => {
+      const existingEndDate = new Date("2026-01-31T00:00:00.000Z");
+      const existingSub = createMockSubscription({
+        id: netflixId,
+        endDate: existingEndDate,
+      });
+      mockedPrisma.subscription.findFirst.mockResolvedValueOnce(existingSub);
+
+      const updatedSub = {
+        ...createMockSubscription({
+          id: netflixId,
+          name: "PartialName",
+          endDate: existingEndDate,
+        }),
+        category: createMockCategory(),
+        paymentMethod: createMockPaymentMethod(),
+      };
+      mockedPrisma.subscription.update.mockResolvedValueOnce(updatedSub as any);
+
+      const req = new Request(`http://x`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "PartialName" }),
+      });
+
+      await PUT(req, makeCtx(netflixId));
+
+      expect(mockedPrisma.subscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            endDate: existingEndDate,
+          }),
+        })
+      );
+    });
+
+    it("clears endDate when null is provided", async () => {
+      const existingSub = createMockSubscription({
+        id: netflixId,
+        endDate: new Date("2026-01-31T00:00:00.000Z"),
+      });
+      mockedPrisma.subscription.findFirst.mockResolvedValueOnce(existingSub);
+
+      const updatedSub = {
+        ...createMockSubscription({
+          id: netflixId,
+          endDate: null,
+        }),
+        category: createMockCategory(),
+        paymentMethod: createMockPaymentMethod(),
+      };
+      mockedPrisma.subscription.update.mockResolvedValueOnce(updatedSub as any);
+
+      const req = new Request(`http://x`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endDate: null }),
+      });
+
+      await PUT(req, makeCtx(netflixId));
+
+      expect(mockedPrisma.subscription.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            endDate: null,
+          }),
+        })
+      );
     });
   });
 

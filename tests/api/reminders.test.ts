@@ -213,6 +213,54 @@ describe("API Integration Tests: /api/reminders/[id]", () => {
       expect(res.body).toEqual({ error: "Reminder not found or unauthorized" });
     });
 
+    it("returns 400 when reminderDate is invalid", async () => {
+      const req = new Request(`http://localhost/api/reminders/${netflixReminderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reminderDate: "not-a-date" }),
+      });
+      const ctx = { params: Promise.resolve({ id: netflixReminderId }) };
+
+      const res = (await PUT(req, ctx)) as unknown as ApiResponse<{ error: string }>;
+
+      expect(res.init).toEqual({ status: 400 });
+      expect(res.body.error).toBe("Validation failed");
+      expect(mockedPrisma.reminder.findFirst).not.toHaveBeenCalled();
+      expect(mockedPrisma.reminder.update).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 when nextSendAt is invalid", async () => {
+      const req = new Request(`http://localhost/api/reminders/${netflixReminderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nextSendAt: "not-a-date" }),
+      });
+      const ctx = { params: Promise.resolve({ id: netflixReminderId }) };
+
+      const res = (await PUT(req, ctx)) as unknown as ApiResponse<{ error: string }>;
+
+      expect(res.init).toEqual({ status: 400 });
+      expect(res.body.error).toBe("Validation failed");
+      expect(mockedPrisma.reminder.findFirst).not.toHaveBeenCalled();
+      expect(mockedPrisma.reminder.update).not.toHaveBeenCalled();
+    });
+
+    it("returns 400 when isRead is not a boolean", async () => {
+      const req = new Request(`http://localhost/api/reminders/${netflixReminderId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isRead: "true" }),
+      });
+      const ctx = { params: Promise.resolve({ id: netflixReminderId }) };
+
+      const res = (await PUT(req, ctx)) as unknown as ApiResponse<{ error: string }>;
+
+      expect(res.init).toEqual({ status: 400 });
+      expect(res.body.error).toBe("Validation failed");
+      expect(mockedPrisma.reminder.findFirst).not.toHaveBeenCalled();
+      expect(mockedPrisma.reminder.update).not.toHaveBeenCalled();
+    });
+
     it("returns 500 on database error during update", async () => {
       const existingReminder = createMockReminder({ id: netflixReminderId });
       mockedPrisma.reminder.findFirst.mockResolvedValueOnce(existingReminder);
