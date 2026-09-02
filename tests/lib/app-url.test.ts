@@ -34,7 +34,8 @@ describe("getInternalAppOrigin", () => {
   });
 
   it("allows a localhost fallback in test and development", () => {
-    process.env.NODE_ENV = "test";
+    const env = process.env as Record<string, string | undefined>;
+    env.NODE_ENV = "test";
     process.env.PORT = "4000";
 
     expect(getInternalAppOrigin()).toBe("http://localhost:4000");

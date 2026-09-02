@@ -124,6 +124,24 @@ export const subscriptionUpdateSchema = z.object({
   paymentMethod: z.string().nullable().optional(),
 });
 
+export const subscriptionImportItemSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  cost: z.number().positive("Cost must be positive"),
+  currency: currencyCode(),
+  billingFrequency: z.literal("monthly"),
+  startDate: dateString("Start date"),
+  category: z.string().nullable().optional(),
+  paymentMethod: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+});
+
+export const subscriptionImportSchema = z.object({
+  subscriptions: z
+    .array(subscriptionImportItemSchema)
+    .min(1, "Select at least one subscription")
+    .max(50, "Import at most 50 subscriptions at a time"),
+});
+
 // Category schemas
 export const categoryCreateSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -231,6 +249,7 @@ export type ProfileUpdateInput = z.infer<typeof profileUpdateSchema>;
 export type CurrencyUpdateInput = z.infer<typeof currencyUpdateSchema>;
 export type SubscriptionCreateInput = z.infer<typeof subscriptionCreateSchema>;
 export type SubscriptionUpdateInput = z.infer<typeof subscriptionUpdateSchema>;
+export type SubscriptionImportInput = z.infer<typeof subscriptionImportSchema>;
 export type CategoryCreateInput = z.infer<typeof categoryCreateSchema>;
 export type CategoryUpdateInput = z.infer<typeof categoryUpdateSchema>;
 export type PaymentMethodCreateInput = z.infer<typeof paymentMethodCreateSchema>;

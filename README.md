@@ -1,59 +1,78 @@
-# App Subscription Tracker
+# SubTracker
 
-A simple and effective tool to help you manage your app subscriptions. Track recurring payments, monitor your spending habits over time, and receive reminders so you never miss a renewal.
+SubTracker is a self-hosted subscription hub for tracking recurring costs, renewal dates, payment methods, categories, and reminder delivery. It also has a browser-only CSV import flow that helps users find likely monthly subscriptions from credit card statements before saving anything.
 
 ## Screenshots
 
-<p>
-  <img src="https://github.com/user-attachments/assets/8cb3cd30-c606-480f-8670-6f3a10236a0b" width="270" alt="Dashboard">
-  <img src="https://github.com/user-attachments/assets/dd94633f-7cf9-4897-af7b-662638e1e204" width="270" alt="Dashboard Dark">
-  <img src="https://github.com/user-attachments/assets/0496e0c7-48ca-4a2c-b04d-2c81ae150777" width="270" alt="Subscriptions">
-</p>
-<p>
-  <img src="https://github.com/user-attachments/assets/61d026ee-ff3e-4435-b858-2f9f2941fb88" width="270" alt="Subscription Details">
-  <img src="https://github.com/user-attachments/assets/f1caac76-c37a-4561-b057-0b0fb4a36ed6" width="270" alt="Categories">
-  <img src="https://github.com/user-attachments/assets/83d40314-7316-4e77-86c5-a43485f31dc8" width="270" alt="Payment Methods">
-</p>
-<p>
-  <img src="https://github.com/user-attachments/assets/0b0849ff-9d7e-4763-99d2-5705e39175ff" width="270" alt="Reminders">
-  <img src="https://github.com/user-attachments/assets/92f822aa-3ecc-495e-bddc-c88e16b1de65" width="270" alt="Analytics">
-  <img src="https://github.com/user-attachments/assets/1d82db72-340c-442c-a943-ad4558613952" width="270" alt="Settings">
-</p>
-<p>
-  <img src="https://github.com/user-attachments/assets/f57a1e6e-0049-492d-a53f-39a97d4f637c" width="270" alt="Notifications">
-  <img src="https://github.com/user-attachments/assets/948b804e-6d61-458e-86d0-f7ea0386e66e" width="270" alt="Login">
-</p>
+<img src="public/readme/dashboard.png" alt="SubTracker dashboard with spend cards, renewal calendar, and upcoming renewals" width="900">
 
-## Features
+| Subscriptions | CSV import | Analytics |
+| --- | --- | --- |
+| <img src="public/readme/subscriptions.png" alt="Subscriptions table with filters and CSV import button" width="280"> | <img src="public/readme/csv-import-flow.png" alt="CSV import modal with a four-step guided flow" width="280"> | <img src="public/readme/analytics.png" alt="Analytics page with monthly and yearly subscription trends" width="280"> |
+| Notifications | Payment methods | Categories |
+| <img src="public/readme/notifications.png" alt="Notification provider settings" width="280"> | <img src="public/readme/payment-methods.png" alt="Payment method settings" width="280"> | <img src="public/readme/categories.png" alt="Subscription category settings" width="280"> |
 
-* **Subscription Tracking**
-  Easily add and manage all your active subscriptions in one place.
+## Demo
 
-* **Cost Overview**
-  View your total subscription costs on a monthly and yearly basis.
+Try the demo at [subscription-tracker-alpha.vercel.app](https://subscription-tracker-alpha.vercel.app/).
 
-* **Change Over Time**
-  Monitor how your subscription spending evolves over time with historical data tracking.
+Seeded users:
 
-* **Notification System**
-  Get notified of upcoming renewals through app-wide Resend email delivery and optional user-configured webhooks.
+* `alice@example.com` / `hashedpassword1`
+* `bob@example.com` / `hashedpassword2`
 
-* **Recurring Reminder Presets**
-  Configure reminders like `1 day before`, `3 days before`, and `1 week before`, with automatic rescheduling for recurring subscriptions.
+## What it does
 
-* **Framework-Agnostic Reminder Scheduling**
-  Run the same reminder dispatch pipeline on Vercel Cron or from your own Docker-hosted scheduler/worker.
+SubTracker keeps subscription data in one place:
 
-* **Docker Support**
-  Host the application yourself using Docker. Refer to the `docker-compose.yml` file for setup instructions.
+* Track active subscriptions with cost, billing frequency, renewal date, category, and payment method.
+* Filter subscriptions by billing cycle, category, payment method, and search text.
+* See monthly spend, yearly spend, active subscription count, and upcoming renewals.
+* Review spending trends by category across monthly and yearly charts.
+* Manage categories and payment methods from settings.
+* Send renewal reminders through Resend email and optional user-managed webhooks.
+* Run reminders through Vercel Cron or the included Docker worker.
 
-## Getting Started
+## CSV import
 
-### Environment Variables
+The CSV import flow is built around privacy. The browser parses the file, maps columns, detects monthly patterns, and shows the user a review step. The API receives only the subscriptions the user confirms.
 
-Create a `.env` file before running the app locally. You can start from `.env.example`.
+The importer currently supports monthly detection:
 
-Required:
+* Two matching charges are marked as possible.
+* Three or more matching charges are marked as likely.
+* Short transaction ranges are allowed, but the UI warns when there is not enough history for reliable detection.
+
+You can test the flow with `public/samples/credit-card-statement-3-months.csv`.
+
+Suggested mappings for the sample file:
+
+| Field | CSV column |
+| --- | --- |
+| Merchant name | `Description` |
+| Transaction date | `Transaction Date` |
+| Amount | `Transaction Amount` |
+| Card/account | `Card #` |
+| Currency | `CAD` |
+
+## Tech stack
+
+* Next.js 15
+* React 19
+* Prisma
+* PostgreSQL
+* NextAuth
+* Tailwind CSS
+* shadcn/ui and Radix UI
+* Jest
+
+## Getting started
+
+You can run SubTracker locally with Node.js and PostgreSQL, or run the published Docker image with Compose.
+
+### Environment variables
+
+Create `.env` from `.env.example`, then set these values:
 
 ```env
 DATABASE_URL="postgresql://user:password@localhost:5432/subscription_tracker"
@@ -62,194 +81,93 @@ NEXTAUTH_SECRET="replace-with-a-long-random-secret"
 RESEND_API_KEY="re_xxxxxxxxxxxxxxxxx"
 EMAIL_FROM="Subscription Tracker <no-reply@example.com>"
 CRON_SECRET="replace-with-a-long-random-secret"
-```
-
-Optional:
-
-```env
 NEXT_PUBLIC_DEMO_MODE=false
 ```
 
-Notes:
+For Docker, keep the Postgres variables from `.env.example` too:
 
-* `RESEND_API_KEY` is used for all email reminder delivery.
-* `EMAIL_FROM` must use a sender/domain configured in Resend.
-* `CRON_SECRET` protects the reminder dispatch endpoint at `/api/cron/reminders`.
-* Do not commit real credentials or production secrets to source control.
+```env
+POSTGRES_USER=subtracker
+POSTGRES_PASSWORD=change-this-postgres-password
+POSTGRES_DB=subscription_tracker
+REMINDER_POLL_INTERVAL_SECONDS=3600
+```
 
-### Running Locally with Next.js
+Do not commit real secrets.
 
-1. Clone the repository:
+### Run locally
 
-   ```bash
-   git clone https://github.com/aungzm/subscription-tracker.git
-   cd subscription-tracker
-   ```
+```bash
+git clone https://github.com/aungzm/subscription-tracker.git
+cd subscription-tracker
+pnpm install
+npx prisma db push
+npx prisma generate
+pnpm db:seed
+pnpm dev
+```
 
-2. Install dependencies:
+Open `http://localhost:3000`.
 
-   ```bash
-   pnpm install
-   ```
+### Run with Docker
 
-3. Sync Prisma schema to your database:
+```bash
+cp .env.example .env
+docker-compose up -d
+```
 
-   ```bash
-   npx prisma db push
-   npx prisma generate
-   ```
+Then apply the schema inside the app container:
 
-4. Optionally seed demo data:
+```bash
+docker-compose exec subscription-tracker npx prisma db push
+docker-compose exec subscription-tracker npx prisma generate
+```
 
-   ```bash
-   pnpm db:seed
-   ```
+Open `http://localhost:3000`.
 
-5. Start the development server:
+The Compose stack also starts `reminder-worker`, which runs `pnpm exec tsx scripts/run-reminders.ts` on the interval set by `REMINDER_POLL_INTERVAL_SECONDS`.
 
-   ```bash
-   pnpm dev
-   ```
+To follow worker logs:
 
-6. The app will be available at `http://localhost:3000`.
+```bash
+docker-compose logs -f reminder-worker
+```
 
-### Running a Production Build
+## Scripts
 
-1. Install dependencies:
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the Next.js dev server. |
+| `pnpm build` | Generate Prisma Client and build the app. |
+| `pnpm start` | Start the production server. |
+| `pnpm test` | Run the Jest test suite. |
+| `pnpm db:seed` | Reset and seed demo data. |
 
-   ```bash
-   pnpm install
-   ```
+## Reminder delivery
 
-2. Push the Prisma schema and generate the client:
-
-   ```bash
-   npx prisma db push
-   npx prisma generate
-   ```
-
-3. Build the application:
-
-   ```bash
-   pnpm build
-   ```
-
-4. Start the production server:
-
-   ```bash
-   pnpm start
-   ```
-
-5. The app will be accessible at `http://localhost:3000` by default.
-
-### Running with Docker
-
-1. Copy the example env file and update it with production-safe values:
-
-   ```bash
-   cp .env.example .env
-   ```
-
-2. Review `.env` and set production-safe values for:
-
-   * `DATABASE_URL`
-   * `POSTGRES_USER`
-   * `POSTGRES_PASSWORD`
-   * `POSTGRES_DB`
-   * `NEXTAUTH_SECRET`
-   * `NEXTAUTH_URL`
-   * `RESEND_API_KEY`
-   * `EMAIL_FROM`
-   * `CRON_SECRET`
-   * `REMINDER_POLL_INTERVAL_SECONDS`
-
-3. Start the containers:
-
-   ```bash
-   docker-compose up -d
-   ```
-
-4. Apply the Prisma schema from inside the app container:
-
-   ```bash
-   docker-compose exec subscription-tracker-app npx prisma db push
-   docker-compose exec subscription-tracker-app npx prisma generate
-   ```
-
-5. Access the application at `http://localhost:3000`.
-
-6. The Compose stack now includes a `reminder-worker` service that automatically runs:
-
-   ```bash
-   pnpm exec tsx scripts/run-reminders.ts
-   ```
-
-   It repeats on the interval defined by `REMINDER_POLL_INTERVAL_SECONDS` in `.env` and shares the same database and Resend configuration as the main app.
-
-7. To watch the reminder worker logs:
-
-   ```bash
-   docker-compose logs -f reminder-worker
-   ```
-
-## Reminder Delivery
-
-The reminder system now uses a shared dispatch pipeline:
-
-* Email is sent through Resend.
-* Webhooks remain optional and user-configurable.
-* Preset reminders are rescheduled automatically for recurring subscriptions.
-* Custom reminders are one-time by default.
-
-Core files:
+Reminder delivery uses a shared dispatch path for Vercel and Docker:
 
 * `app/api/cron/reminders/route.ts`
 * `lib/reminder-dispatch.ts`
 * `lib/reminder-schedule.ts`
 * `scripts/run-reminders.ts`
 
-### Vercel
+Vercel Cron should call `GET /api/cron/reminders` with this header:
 
-This repository includes `vercel.json` with an hourly cron entry:
-
-* `GET /api/cron/reminders`
-
-The route requires:
-
-* `CRON_SECRET`
-
-Vercel Cron should call the endpoint with:
-
-* `Authorization: Bearer <CRON_SECRET>`
-
-### Docker / Self-Hosted
-
-The Docker Compose setup includes a `reminder-worker` container that runs the same dispatch logic on a loop:
-
-```bash
-pnpm exec tsx scripts/run-reminders.ts
+```http
+Authorization: Bearer <CRON_SECRET>
 ```
 
-Set `REMINDER_POLL_INTERVAL_SECONDS` in `.env` to control how often the worker checks for due reminders. That keeps reminder behavior consistent across Vercel and Docker deployments.
+Email reminders use Resend through `RESEND_API_KEY` and `EMAIL_FROM`. Webhook providers are optional and user-managed from settings.
 
-## Notification Provider Model
+## Roadmap
 
-Notification settings are intentionally split by responsibility:
-
-* **Email** is app-wide and delivered through Resend.
-* **Webhook providers** are user-managed and optional.
-
-Users do not configure SMTP credentials in the app anymore. If you want reminder emails to work, set:
-
-* `RESEND_API_KEY`
-* `EMAIL_FROM`
-
-## Demo instance
-
-Demo instance can be found [here](https://subscription-tracker-alpha.vercel.app/) \
-User: alice@example.com / bob@example.com \
-Password: hashedpassword1 / hashedpassword2
+* Improve merchant cleanup for card statement descriptors.
+* Add yearly subscription detection after the monthly import flow is proven.
+* Add import presets for common banks and card issuers.
+* Let users save a mapping template without storing raw transaction history.
+* Add richer duplicate detection before import.
 
 ## License
 
-This project is open-source and available under the [MIT License](LICENSE).
+This project is open source under the [MIT License](LICENSE).
